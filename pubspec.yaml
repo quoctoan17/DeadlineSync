@@ -37,8 +37,6 @@ dependencies:
   flutter_riverpod: ^2.5.1
   
   # Auth & Sync
-  flutter_appauth: ^6.0.0
-  msal_flutter: ^2.0.0
   flutter_secure_storage: ^9.0.0
   http: ^1.2.1
   

@@ -3,14 +3,14 @@ enum DeadlineSource { outlook, manual }
 enum PriorityLevel { low, medium, high }
 
 class Deadline {
-  final String id;              // ID duy nhất (từ Outlook hoặc UUID tự tạo)
-  final String title;           // Tiêu đề deadline
-  final DateTime? dueDate;      // Ngày hết hạn
-  final String? description;    // Mô tả chi tiết
-  final bool isCompleted;       // Trạng thái hoàn thành
-  final DeadlineSource source;  // Nguồn: Outlook hay Thủ công
+  final String id; // ID duy nhất (từ Outlook hoặc UUID tự tạo)
+  final String title; // Tiêu đề deadline
+  final DateTime? dueDate; // Ngày hết hạn
+  final String? description; // Mô tả chi tiết
+  final bool isCompleted; // Trạng thái hoàn thành
+  final DeadlineSource source; // Nguồn: Outlook hay Thủ công
   final PriorityLevel priority; // Mức độ ưu tiên
-  final DateTime createdAt;     // Ngày tạo
+  final DateTime createdAt; // Ngày tạo
 
   Deadline({
     required this.id,
@@ -32,14 +32,14 @@ class Deadline {
     PriorityLevel? priority,
   }) {
     return Deadline(
-      id: this.id,
+      id: id,
       title: title ?? this.title,
       dueDate: dueDate ?? this.dueDate,
       description: description ?? this.description,
       isCompleted: isCompleted ?? this.isCompleted,
-      source: this.source,
+      source: source,
       priority: priority ?? this.priority,
-      createdAt: this.createdAt,
+      createdAt: createdAt,
     );
   }
 }
