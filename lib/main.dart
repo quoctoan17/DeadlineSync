@@ -12,7 +12,7 @@ void main() async {
   await Firebase.initializeApp();
   
   // Load environment variables (From Toàn's branch)
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: ".env", isOptional: true);
   
   runApp(
     const ProviderScope(
