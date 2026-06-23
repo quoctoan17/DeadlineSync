@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../auth/data/auth_repository.dart';
+import '../../../notification/data/providers/local_notification_providers.dart';
 import '../datasources/deadline_firestore_data_source.dart';
 import '../datasources/deadline_local_data_source.dart';
 import '../repositories/deadline_repository.dart';
@@ -29,5 +30,6 @@ final deadlineRepositoryProvider = Provider<DeadlineRepository>((ref) {
     authRepository: ref.watch(authRepositoryProvider),
     localDataSource: ref.watch(deadlineLocalDataSourceProvider),
     firestoreDataSource: ref.watch(deadlineFirestoreDataSourceProvider),
+    notificationService: ref.watch(localNotificationServiceProvider),
   );
 });
