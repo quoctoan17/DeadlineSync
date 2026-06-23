@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../data/models/deadline_model.dart';
 import '../../data/providers/deadline_database_providers.dart';
 import '../../domain/entities/deadline.dart';
 import 'ai_provider.dart';
@@ -71,12 +70,10 @@ class ImportController {
   }
 
   Future<void> confirmImport(List<Deadline> selectedDeadlines) async {
+    final deadlineRepository = _ref.read(deadlineRepositoryProvider);
     final localDataSource = _ref.read(deadlineLocalDataSourceProvider);
-    final deadlineModels = selectedDeadlines
-        .map(DeadlineModel.fromEntity)
-        .toList();
 
-    await localDataSource.upsertDeadlines(deadlineModels);
+    await deadlineRepository.saveDeadlines(selectedDeadlines);
     await localDataSource.markEmailsProcessed(
       selectedDeadlines.map((deadline) => deadline.emailId).whereType<String>(),
     );
