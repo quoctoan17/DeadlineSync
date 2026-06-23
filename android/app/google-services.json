@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "224537490363",
+    "project_id": "deadlinesync-70080",
+    "storage_bucket": "deadlinesync-70080.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:224537490363:android:07ea3245401a017079ca9e",
+        "android_client_info": {
+          "package_name": "com.example.deadline_sync"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAR5_KZFe6_YxGy9pfBd3xQ3yu3fI8LaTs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
