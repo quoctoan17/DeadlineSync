@@ -1,16 +1,23 @@
-enum DeadlineSource { outlook, manual }
+enum DeadlineSource { outlook, gmail, manual }
 
 enum PriorityLevel { low, medium, high }
 
+enum RiskLevel { low, medium, high, extreme }
+
 class Deadline {
-  final String id;              // ID duy nhất (từ Outlook hoặc UUID tự tạo)
-  final String title;           // Tiêu đề deadline
-  final DateTime? dueDate;      // Ngày hết hạn
-  final String? description;    // Mô tả chi tiết
-  final bool isCompleted;       // Trạng thái hoàn thành
-  final DeadlineSource source;  // Nguồn: Outlook hay Thủ công
-  final PriorityLevel priority; // Mức độ ưu tiên
-  final DateTime createdAt;     // Ngày tạo
+  final String id;
+  final String title;
+  final DateTime? dueDate;
+  final String? description;
+  final bool isCompleted;
+  final DeadlineSource source;
+  final PriorityLevel priority;
+  final DateTime createdAt;
+  
+  // Các trường bổ sung cho AI
+  final RiskLevel riskLevel;    // Mức độ rủi ro AI đánh giá
+  final String? aiSuggestion;   // Lời khuyên cụ thể từ AI
+  final String? emailId;        // Lưu ID email gốc để chặn trùng lặp
 
   Deadline({
     required this.id,
@@ -21,15 +28,19 @@ class Deadline {
     required this.source,
     this.priority = PriorityLevel.medium,
     required this.createdAt,
+    this.riskLevel = RiskLevel.low,
+    this.aiSuggestion,
+    this.emailId,
   });
 
-  // Helper để tạo bản sao với thay đổi (Dùng cho State Management của Thành viên B)
   Deadline copyWith({
     String? title,
     DateTime? dueDate,
     String? description,
     bool? isCompleted,
     PriorityLevel? priority,
+    RiskLevel? riskLevel,
+    String? aiSuggestion,
   }) {
     return Deadline(
       id: this.id,
@@ -40,6 +51,9 @@ class Deadline {
       source: this.source,
       priority: priority ?? this.priority,
       createdAt: this.createdAt,
+      riskLevel: riskLevel ?? this.riskLevel,
+      aiSuggestion: aiSuggestion ?? this.aiSuggestion,
+      emailId: this.emailId,
     );
   }
 }
