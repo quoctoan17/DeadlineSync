@@ -20,6 +20,9 @@ void main() {
       createdAt: createdAt,
       updatedAt: updatedAt,
       syncStatus: SyncStatus.pendingUpdate,
+      riskLevel: RiskLevel.high,
+      aiSuggestion: 'Start this before the weekend.',
+      emailId: 'gmail-123',
     );
 
     final restored = DeadlineModel.fromMap(model.toMap());
@@ -35,5 +38,8 @@ void main() {
     expect(restored.createdAt, createdAt);
     expect(restored.updatedAt, updatedAt);
     expect(restored.syncStatus, SyncStatus.pendingUpdate);
+    expect(restored.riskLevel, RiskLevel.high);
+    expect(restored.aiSuggestion, 'Start this before the weekend.');
+    expect(restored.emailId, 'gmail-123');
   });
 }

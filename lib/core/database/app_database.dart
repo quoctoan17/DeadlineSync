@@ -3,9 +3,10 @@ import 'package:sqflite/sqflite.dart';
 
 class AppDatabase {
   static const databaseName = 'deadline_sync.db';
-  static const databaseVersion = 1;
+  static const databaseVersion = 2;
 
   static const deadlinesTable = 'deadlines';
+  static const processedEmailsTable = 'processed_emails';
   static const tasksTable = 'tasks';
 
   Database? _database;
@@ -23,6 +24,7 @@ class AppDatabase {
       fullPath,
       version: databaseVersion,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
 
     _database = openedDatabase;
@@ -40,10 +42,32 @@ class AppDatabase {
   Future<void> _onCreate(Database database, int version) async {
     await database.execute(_createDeadlinesTableSql);
     await database.execute(_createTasksTableSql);
+    await database.execute(_createProcessedEmailsTableSql);
     await database.execute(_createDeadlinesDueDateIndexSql);
     await database.execute(_createDeadlinesSyncStatusIndexSql);
+    await database.execute(_createDeadlinesEmailIdIndexSql);
     await database.execute(_createTasksDueDateIndexSql);
     await database.execute(_createTasksSyncStatusIndexSql);
+  }
+
+  Future<void> _onUpgrade(
+    Database database,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await database.execute(
+        "ALTER TABLE $deadlinesTable ADD COLUMN risk_level TEXT NOT NULL DEFAULT 'low'",
+      );
+      await database.execute(
+        'ALTER TABLE $deadlinesTable ADD COLUMN ai_suggestion TEXT',
+      );
+      await database.execute(
+        'ALTER TABLE $deadlinesTable ADD COLUMN email_id TEXT',
+      );
+      await database.execute(_createProcessedEmailsTableSql);
+      await database.execute(_createDeadlinesEmailIdIndexSql);
+    }
   }
 
   static const _createDeadlinesTableSql =
@@ -59,7 +83,18 @@ CREATE TABLE $deadlinesTable (
   priority TEXT NOT NULL,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
-  sync_status TEXT NOT NULL
+  sync_status TEXT NOT NULL,
+  risk_level TEXT NOT NULL DEFAULT 'low',
+  ai_suggestion TEXT,
+  email_id TEXT
+)
+''';
+
+  static const _createProcessedEmailsTableSql =
+      '''
+CREATE TABLE $processedEmailsTable (
+  email_id TEXT PRIMARY KEY,
+  processed_at INTEGER NOT NULL
 )
 ''';
 
@@ -84,6 +119,9 @@ CREATE TABLE $tasksTable (
 
   static const _createDeadlinesSyncStatusIndexSql =
       'CREATE INDEX idx_deadlines_sync_status ON $deadlinesTable(sync_status)';
+
+  static const _createDeadlinesEmailIdIndexSql =
+      'CREATE INDEX idx_deadlines_email_id ON $deadlinesTable(email_id)';
 
   static const _createTasksDueDateIndexSql =
       'CREATE INDEX idx_tasks_due_date ON $tasksTable(due_date)';
