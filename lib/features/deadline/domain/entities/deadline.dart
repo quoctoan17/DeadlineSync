@@ -1,6 +1,8 @@
-enum DeadlineSource { canvas, outlook, manual }
+enum DeadlineSource { canvas, outlook, gmail, manual }
 
 enum PriorityLevel { low, medium, high }
+
+enum RiskLevel { low, medium, high, extreme }
 
 enum SyncStatus { synced, pendingCreate, pendingUpdate, pendingDelete }
 
@@ -16,6 +18,11 @@ class Deadline {
   final DateTime createdAt;
   final DateTime updatedAt;
   final SyncStatus syncStatus;
+  
+  // Các trường bổ sung cho AI
+  final RiskLevel riskLevel;    // Mức độ rủi ro AI đánh giá
+  final String? aiSuggestion;   // Lời khuyên cụ thể từ AI
+  final String? emailId;        // Lưu ID email gốc để chặn trùng lặp
 
   Deadline({
     required this.id,
@@ -29,6 +36,9 @@ class Deadline {
     required this.createdAt,
     DateTime? updatedAt,
     this.syncStatus = SyncStatus.pendingCreate,
+    this.riskLevel = RiskLevel.low,
+    this.aiSuggestion,
+    this.emailId,
   }) : updatedAt = updatedAt ?? createdAt;
 
   Deadline copyWith({
@@ -41,6 +51,8 @@ class Deadline {
     PriorityLevel? priority,
     DateTime? updatedAt,
     SyncStatus? syncStatus,
+    RiskLevel? riskLevel,
+    String? aiSuggestion,
   }) {
     return Deadline(
       id: id,
@@ -54,6 +66,9 @@ class Deadline {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
+      riskLevel: riskLevel ?? this.riskLevel,
+      aiSuggestion: aiSuggestion ?? this.aiSuggestion,
+      emailId: this.emailId,
     );
   }
 }

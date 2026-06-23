@@ -2,14 +2,23 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'features/auth/presentation/auth_gate.dart';
-
-Future<void> main() async {
+void main() async {
+  // Đảm bảo các dịch vụ Flutter đã được khởi tạo
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase (From Quân's branch)
   await Firebase.initializeApp();
-
-  runApp(const ProviderScope(child: DeadlineSyncApp()));
+  
+  // Load environment variables (From Toàn's branch)
+  await dotenv.load(fileName: ".env");
+  
+  runApp(
+    const ProviderScope(
+      child: DeadlineSyncApp(),
+    ),
+  );
 }
 
 class DeadlineSyncApp extends StatelessWidget {
@@ -25,11 +34,41 @@ class DeadlineSyncApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFFE64A19),
           primary: const Color(0xFFE64A19),
-          secondary: const Color(0xFF0078D4),
+          secondary: const Color(0xFF4285F4),
         ),
         textTheme: GoogleFonts.interTextTheme(),
       ),
-      home: const AuthGate(),
+      // Starting screen prepared for Thiện
+      home: const InitialLoadingScreen(),
+    );
+  }
+}
+
+class InitialLoadingScreen extends StatelessWidget {
+  const InitialLoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.auto_awesome, size: 64, color: Color(0xFFE64A19)),
+            SizedBox(height: 16),
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'DeadlineSync AI Engine Ready',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              'Waiting for UI implementation...',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
