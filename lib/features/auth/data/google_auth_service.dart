@@ -18,6 +18,11 @@ class GoogleAuthService {
   // Stream để lắng nghe sự thay đổi của người dùng (Đăng nhập/Đăng xuất)
   Stream<GoogleSignInAccount?> get onCurrentUserChanged => _googleSignIn.onCurrentUserChanged;
 
+  // Kiểm tra đăng nhập thầm lặng (Dùng khi khởi động app)
+  Future<GoogleSignInAccount?> signInSilently() async {
+    return await _googleSignIn.signInSilently();
+  }
+
   // Hàm đăng nhập
   Future<GoogleSignInAccount?> signIn() async {
     try {

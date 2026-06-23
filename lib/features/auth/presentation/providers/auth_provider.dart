@@ -2,26 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../data/google_auth_service.dart';
 
-import '../../data/gmail_service.dart';
-
-/// Provider cung cấp instance của GoogleAuthService
 final googleAuthServiceProvider = Provider<GoogleAuthService>((ref) {
   return GoogleAuthService();
 });
 
-/// Provider cung cấp instance của GmailService
-final gmailServiceProvider = Provider<GmailService>((ref) {
-  return GmailService();
-});
-
-/// StreamProvider lắng nghe trạng thái đăng nhập của người dùng.
-/// UI có thể dùng ref.watch(authStateProvider) để biết User đã log in hay chưa.
 final authStateProvider = StreamProvider<GoogleSignInAccount?>((ref) {
   final authService = ref.watch(googleAuthServiceProvider);
+  // Kiểm tra đăng nhập thầm lặng ngay khi khởi tạo
+  authService.signInSilently();
   return authService.onCurrentUserChanged;
 });
 
-/// Provider cung cấp các phương thức hành động (login, logout)
 final authControllerProvider = Provider<AuthController>((ref) {
   final authService = ref.watch(googleAuthServiceProvider);
   return AuthController(authService);
