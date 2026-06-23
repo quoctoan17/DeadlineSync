@@ -10,7 +10,10 @@ import firebase_auth
 import firebase_core
 import firebase_messaging
 import flutter_secure_storage_macos
+<<<<<<< HEAD
 import google_sign_in_ios
+=======
+>>>>>>> main
 import sqflite_darwin
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
@@ -19,6 +22,9 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   FLTFirebaseCorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseCorePlugin"))
   FLTFirebaseMessagingPlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseMessagingPlugin"))
   FlutterSecureStoragePlugin.register(with: registry.registrar(forPlugin: "FlutterSecureStoragePlugin"))
+<<<<<<< HEAD
   FLTGoogleSignInPlugin.register(with: registry.registrar(forPlugin: "FLTGoogleSignInPlugin"))
+=======
+>>>>>>> main
   SqflitePlugin.register(with: registry.registrar(forPlugin: "SqflitePlugin"))
 }

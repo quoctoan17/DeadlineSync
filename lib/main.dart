@@ -1,14 +1,17 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   // Đảm bảo các dịch vụ Flutter đã được khởi tạo
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Load biến môi trường từ file .env
+  // Initialize Firebase (From Quân's branch)
+  await Firebase.initializeApp();
+  
+  // Load environment variables (From Toàn's branch)
   await dotenv.load(fileName: ".env");
   
   runApp(
@@ -35,7 +38,7 @@ class DeadlineSyncApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.interTextTheme(),
       ),
-      // Màn hình khởi đầu sạch sẽ cho Thành viên B (Thiện)
+      // Starting screen prepared for Thiện
       home: const InitialLoadingScreen(),
     );
   }
