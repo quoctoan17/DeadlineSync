@@ -8,8 +8,12 @@ import 'features/auth/presentation/auth_gate.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  await dotenv.load(fileName: '.env', isOptional: true);
+  try {
+    await Firebase.initializeApp();
+    await dotenv.load(fileName: '.env', isOptional: true);
+  } catch (e) {
+    debugPrint("Lỗi khởi tạo: $e");
+  }
 
   runApp(const ProviderScope(child: DeadlineSyncApp()));
 }

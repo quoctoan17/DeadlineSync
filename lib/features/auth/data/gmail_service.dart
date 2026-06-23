@@ -1,37 +1,32 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/gmail/v1.dart';
-import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
+import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 
 class GmailService {
   final _logger = Logger();
 
   /// Hàm lấy danh sách Email trong khoảng thời gian xác định
-  /// [days]: Số ngày gần nhất muốn quét (7 hoặc 30)
   Future<List<Message>> fetchEmails(GoogleSignInAccount account, int days) async {
     try {
-      // 1. Khởi tạo authenticated client từ tài khoản Google đã đăng nhập
-      final httpClient = await account.authenticatedClient();
-      if (httpClient == null) return [];
+      // 1. Lấy Auth Headers chứa Access Token
+      final authHeaders = await account.authHeaders;
+      final httpClient = GoogleAuthClient(authHeaders);
 
       final gmailApi = GmailApi(httpClient);
 
-      // 2. Tính toán mốc thời gian (Gmail dùng định dạng YYYY/MM/DD cho query)
+      // 2. Tính toán mốc thời gian
       final afterDate = DateTime.now().subtract(Duration(days: days));
       final dateQuery = "${afterDate.year}/${afterDate.month.toString().padLeft(2, '0')}/${afterDate.day.toString().padLeft(2, '0')}";
 
-      // 3. Tạo câu truy vấn (Query) để lọc Email
-      // after:YYYY/MM/DD -> Chỉ lấy mail sau ngày này
-      // subject:(deadline OR assignment OR "hạn chót") -> Tìm các từ khóa liên quan
       final query = "after:$dateQuery subject:(deadline OR assignment OR \"hạn chót\" OR quiz OR \"bài tập\")";
 
       _logger.i("Đang quét Gmail với query: $query");
 
-      // 4. Gọi API lấy danh sách Message IDs
       final ListMessagesResponse results = await gmailApi.users.messages.list(
         'me',
         q: query,
-        maxResults: 20, // Giới hạn 20 mail gần nhất để tiết kiệm AI quota
+        maxResults: 20,
       );
 
       if (results.messages == null || results.messages!.isEmpty) {
@@ -39,7 +34,6 @@ class GmailService {
         return [];
       }
 
-      // 5. Lấy nội dung chi tiết cho từng Message
       List<Message> fullMessages = [];
       for (var msg in results.messages!) {
         final fullMsg = await gmailApi.users.messages.get('me', msg.id!);
@@ -52,5 +46,19 @@ class GmailService {
       _logger.e("Lỗi khi fetch Gmail: $e");
       return [];
     }
+  }
+}
+
+/// Helper class để đính kèm Google Auth Headers vào mọi request
+class GoogleAuthClient extends http.BaseClient {
+  final Map<String, String> _headers;
+  final http.Client _client = http.Client();
+
+  GoogleAuthClient(this._headers);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    request.headers.addAll(_headers);
+    return _client.send(request);
   }
 }
