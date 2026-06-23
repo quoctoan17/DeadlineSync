@@ -1,7 +1,11 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../../auth/data/auth_repository.dart';
+import '../datasources/deadline_firestore_data_source.dart';
 import '../datasources/deadline_local_data_source.dart';
+import '../repositories/deadline_repository.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final database = AppDatabase();
@@ -13,4 +17,17 @@ final deadlineLocalDataSourceProvider = Provider<DeadlineLocalDataSource>((
   ref,
 ) {
   return DeadlineLocalDataSource(ref.watch(appDatabaseProvider));
+});
+
+final deadlineFirestoreDataSourceProvider =
+    Provider<DeadlineFirestoreDataSource>((ref) {
+  return DeadlineFirestoreDataSource(FirebaseFirestore.instance);
+});
+
+final deadlineRepositoryProvider = Provider<DeadlineRepository>((ref) {
+  return DeadlineRepository(
+    authRepository: ref.watch(authRepositoryProvider),
+    localDataSource: ref.watch(deadlineLocalDataSourceProvider),
+    firestoreDataSource: ref.watch(deadlineFirestoreDataSourceProvider),
+  );
 });

@@ -43,7 +43,7 @@ class MainDashboard extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Firebase Authentication is ready. Next task: SQLite offline storage.',
+                'Firebase Authentication is ready. Next task: Gmail import review UI.',
                 textAlign: TextAlign.center,
               ),
             ],

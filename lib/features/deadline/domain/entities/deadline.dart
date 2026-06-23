@@ -18,11 +18,9 @@ class Deadline {
   final DateTime createdAt;
   final DateTime updatedAt;
   final SyncStatus syncStatus;
-  
-  // Các trường bổ sung cho AI
-  final RiskLevel riskLevel;    // Mức độ rủi ro AI đánh giá
-  final String? aiSuggestion;   // Lời khuyên cụ thể từ AI
-  final String? emailId;        // Lưu ID email gốc để chặn trùng lặp
+  final RiskLevel riskLevel;
+  final String? aiSuggestion;
+  final String? emailId;
 
   Deadline({
     required this.id,
@@ -53,6 +51,7 @@ class Deadline {
     SyncStatus? syncStatus,
     RiskLevel? riskLevel,
     String? aiSuggestion,
+    String? emailId,
   }) {
     return Deadline(
       id: id,
@@ -68,7 +67,7 @@ class Deadline {
       syncStatus: syncStatus ?? this.syncStatus,
       riskLevel: riskLevel ?? this.riskLevel,
       aiSuggestion: aiSuggestion ?? this.aiSuggestion,
-      emailId: this.emailId,
+      emailId: emailId ?? this.emailId,
     );
   }
 }
