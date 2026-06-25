@@ -82,18 +82,24 @@ class DeadlineRepository {
   }
 
   Future<void> deleteDeadline(String deadlineId) async {
-    await _localDataSource.deleteDeadline(deadlineId);
+    final existingDeadline = await _localDataSource.getDeadlineById(deadlineId);
     await _notificationService.cancelDeadlineReminder(deadlineId);
 
     final userId = _currentUserId;
-    if (userId == null) {
+    if (userId == null || existingDeadline == null) {
+      await _localDataSource.deleteDeadline(deadlineId);
       return;
     }
 
-    await _firestoreDataSource.deleteDeadline(
-      userId: userId,
-      deadlineId: deadlineId,
-    );
+    try {
+      await _firestoreDataSource.deleteDeadline(
+        userId: userId,
+        deadlineId: existingDeadline.remoteId ?? existingDeadline.id,
+      );
+      await _localDataSource.deleteDeadline(deadlineId);
+    } catch (_) {
+      await _localDataSource.markDeadlinePendingDelete(existingDeadline);
+    }
   }
 
   Future<void> _scheduleReminders(List<Deadline> deadlines) async {
