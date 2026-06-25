@@ -43,9 +43,11 @@ class DeadlineRepository {
       return;
     }
 
-    final localPendingModels = deadlines
-        .map((deadline) => DeadlineModel.fromEntity(deadline))
-        .toList();
+    final localPendingModels = <DeadlineModel>[];
+    for (final deadline in deadlines) {
+      localPendingModels.add(await _pendingModelForSave(deadline));
+    }
+
     await _localDataSource.upsertDeadlines(localPendingModels);
     await _scheduleReminders(deadlines);
 
@@ -55,7 +57,7 @@ class DeadlineRepository {
     }
 
     try {
-      final syncedModels = deadlines
+      final syncedModels = localPendingModels
           .map(
             (deadline) => DeadlineModel.fromEntity(
               deadline.copyWith(syncStatus: SyncStatus.synced),
@@ -70,14 +72,7 @@ class DeadlineRepository {
 
       await _localDataSource.upsertDeadlines(syncedModels);
     } catch (_) {
-      final pendingModels = deadlines
-          .map(
-            (deadline) => DeadlineModel.fromEntity(
-              deadline.copyWith(syncStatus: SyncStatus.pendingCreate),
-            ),
-          )
-          .toList();
-      await _localDataSource.upsertDeadlines(pendingModels);
+      await _localDataSource.upsertDeadlines(localPendingModels);
     }
   }
 
@@ -106,6 +101,23 @@ class DeadlineRepository {
     for (final deadline in deadlines) {
       await _notificationService.scheduleDeadlineReminder(deadline);
     }
+  }
+
+  Future<DeadlineModel> _pendingModelForSave(Deadline deadline) async {
+    final existingDeadline = await _localDataSource.getDeadlineById(
+      deadline.id,
+    );
+    final shouldCreate =
+        existingDeadline?.syncStatus == SyncStatus.pendingCreate ||
+        (existingDeadline == null && deadline.remoteId == null);
+
+    return DeadlineModel.fromEntity(
+      deadline.copyWith(
+        syncStatus: shouldCreate
+            ? SyncStatus.pendingCreate
+            : SyncStatus.pendingUpdate,
+      ),
+    );
   }
 
   String? get _currentUserId => _authRepository.currentUser?.uid;
