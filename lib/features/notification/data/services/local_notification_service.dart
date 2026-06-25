@@ -87,6 +87,32 @@ class LocalNotificationService {
     await _notifications.cancel(_notificationId(deadlineId));
   }
 
+  Future<void> showInstantNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    await initialize();
+
+    await _notifications.show(
+      id,
+      title,
+      body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'push_notifications',
+          'Push notifications',
+          channelDescription: 'Notifications received from Firebase Cloud Messaging',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      payload: payload,
+    );
+  }
+
   Future<void> cancelAll() async {
     await _notifications.cancelAll();
   }
