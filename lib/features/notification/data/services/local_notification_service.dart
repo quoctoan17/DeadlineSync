@@ -1,4 +1,4 @@
-﻿import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -8,6 +8,7 @@ class LocalNotificationService {
   LocalNotificationService(this._notifications);
 
   final FlutterLocalNotificationsPlugin _notifications;
+  Future<void>? _initialization;
   bool _isInitialized = false;
 
   Future<void> initialize() async {
@@ -15,32 +16,49 @@ class LocalNotificationService {
       return;
     }
 
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
+    final existingInitialization = _initialization;
+    if (existingInitialization != null) {
+      return existingInitialization;
+    }
 
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
-    const iosSettings = DarwinInitializationSettings();
-    const settings = InitializationSettings(
-      android: androidSettings,
-      iOS: iosSettings,
-    );
+    final initialization = _initialize();
+    _initialization = initialization;
+    return initialization;
+  }
 
-    await _notifications.initialize(settings);
-    await requestPermissions();
-    _isInitialized = true;
+  Future<void> _initialize() async {
+    try {
+      tz.initializeTimeZones();
+      tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
+
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
+      const iosSettings = DarwinInitializationSettings();
+      const settings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      );
+
+      await _notifications.initialize(settings);
+      await requestPermissions();
+      _isInitialized = true;
+    } finally {
+      _initialization = null;
+    }
   }
 
   Future<void> requestPermissions() async {
     final android = _notifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await android?.requestNotificationsPermission();
 
     final ios = _notifications
         .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin>();
+          IOSFlutterLocalNotificationsPlugin
+        >();
     await ios?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
@@ -103,7 +121,8 @@ class LocalNotificationService {
         android: AndroidNotificationDetails(
           'push_notifications',
           'Push notifications',
-          channelDescription: 'Notifications received from Firebase Cloud Messaging',
+          channelDescription:
+              'Notifications received from Firebase Cloud Messaging',
           importance: Importance.high,
           priority: Priority.high,
         ),
@@ -153,4 +172,3 @@ class LocalNotificationService {
     }
   }
 }
-
