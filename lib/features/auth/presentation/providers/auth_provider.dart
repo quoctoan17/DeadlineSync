@@ -1,9 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../../data/gmail_service.dart';
 import '../../data/google_auth_service.dart';
 
 final googleAuthServiceProvider = Provider<GoogleAuthService>((ref) {
   return GoogleAuthService();
+});
+
+final gmailServiceProvider = Provider<GmailService>((ref) {
+  return GmailService();
 });
 
 final authStateProvider = StreamProvider<GoogleSignInAccount?>((ref) {

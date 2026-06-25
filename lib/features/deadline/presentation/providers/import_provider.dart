@@ -38,7 +38,8 @@ class ImportController {
 
       for (final message in messages) {
         final emailId = message.id ?? '';
-        if (emailId.isEmpty || await localDataSource.hasProcessedEmail(emailId)) {
+        if (emailId.isEmpty ||
+            await localDataSource.hasProcessedEmail(emailId)) {
           continue;
         }
 
@@ -72,11 +73,17 @@ class ImportController {
   Future<void> confirmImport(List<Deadline> selectedDeadlines) async {
     final deadlineRepository = _ref.read(deadlineRepositoryProvider);
     final localDataSource = _ref.read(deadlineLocalDataSourceProvider);
+    final pendingDeadlines = _ref.read(pendingDeadlinesProvider);
 
     await deadlineRepository.saveDeadlines(selectedDeadlines);
-    await localDataSource.markEmailsProcessed(
-      selectedDeadlines.map((deadline) => deadline.emailId).whereType<String>(),
-    );
+    await localDataSource.markEmailsProcessed({
+      ...pendingDeadlines
+          .map((deadline) => deadline.emailId)
+          .whereType<String>(),
+      ...selectedDeadlines
+          .map((deadline) => deadline.emailId)
+          .whereType<String>(),
+    });
 
     _ref.read(pendingDeadlinesProvider.notifier).state = [];
   }
