@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import '../../../auth/data/auth_repository.dart';
 import '../../../notification/data/services/local_notification_service.dart';
 import '../../domain/entities/deadline.dart';
