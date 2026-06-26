@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'features/auth/presentation/auth_gate.dart';
+import 'features/notification/presentation/notification_bootstrap.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,7 @@ class DeadlineSyncApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.interTextTheme(),
       ),
-      home: const AuthGate(),
+      home: const NotificationBootstrap(child: AuthGate()),
     );
   }
 }

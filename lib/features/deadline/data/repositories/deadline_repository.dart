@@ -1,4 +1,5 @@
 import '../../../auth/data/auth_repository.dart';
+import '../../../notification/data/services/local_notification_service.dart';
 import '../../domain/entities/deadline.dart';
 import '../datasources/deadline_firestore_data_source.dart';
 import '../datasources/deadline_local_data_source.dart';
@@ -9,13 +10,16 @@ class DeadlineRepository {
     required AuthRepository authRepository,
     required DeadlineLocalDataSource localDataSource,
     required DeadlineFirestoreDataSource firestoreDataSource,
+    required LocalNotificationService notificationService,
   }) : _authRepository = authRepository,
        _localDataSource = localDataSource,
-       _firestoreDataSource = firestoreDataSource;
+       _firestoreDataSource = firestoreDataSource,
+       _notificationService = notificationService;
 
   final AuthRepository _authRepository;
   final DeadlineLocalDataSource _localDataSource;
   final DeadlineFirestoreDataSource _firestoreDataSource;
+  final LocalNotificationService _notificationService;
 
   Future<List<DeadlineModel>> getLocalDeadlines() {
     return _localDataSource.getAllDeadlines();
@@ -39,10 +43,13 @@ class DeadlineRepository {
       return;
     }
 
-    final localPendingModels = deadlines
-        .map((deadline) => DeadlineModel.fromEntity(deadline))
-        .toList();
+    final localPendingModels = <DeadlineModel>[];
+    for (final deadline in deadlines) {
+      localPendingModels.add(await _pendingModelForSave(deadline));
+    }
+
     await _localDataSource.upsertDeadlines(localPendingModels);
+    await _scheduleReminders(deadlines);
 
     final userId = _currentUserId;
     if (userId == null) {
@@ -50,7 +57,7 @@ class DeadlineRepository {
     }
 
     try {
-      final syncedModels = deadlines
+      final syncedModels = localPendingModels
           .map(
             (deadline) => DeadlineModel.fromEntity(
               deadline.copyWith(syncStatus: SyncStatus.synced),
@@ -65,28 +72,51 @@ class DeadlineRepository {
 
       await _localDataSource.upsertDeadlines(syncedModels);
     } catch (_) {
-      final pendingModels = deadlines
-          .map(
-            (deadline) => DeadlineModel.fromEntity(
-              deadline.copyWith(syncStatus: SyncStatus.pendingCreate),
-            ),
-          )
-          .toList();
-      await _localDataSource.upsertDeadlines(pendingModels);
+      await _localDataSource.upsertDeadlines(localPendingModels);
     }
   }
 
   Future<void> deleteDeadline(String deadlineId) async {
-    await _localDataSource.deleteDeadline(deadlineId);
+    final existingDeadline = await _localDataSource.getDeadlineById(deadlineId);
+    await _notificationService.cancelDeadlineReminder(deadlineId);
 
     final userId = _currentUserId;
-    if (userId == null) {
+    if (userId == null || existingDeadline == null) {
+      await _localDataSource.deleteDeadline(deadlineId);
       return;
     }
 
-    await _firestoreDataSource.deleteDeadline(
-      userId: userId,
-      deadlineId: deadlineId,
+    try {
+      await _firestoreDataSource.deleteDeadline(
+        userId: userId,
+        deadlineId: existingDeadline.remoteId ?? existingDeadline.id,
+      );
+      await _localDataSource.deleteDeadline(deadlineId);
+    } catch (_) {
+      await _localDataSource.markDeadlinePendingDelete(existingDeadline);
+    }
+  }
+
+  Future<void> _scheduleReminders(List<Deadline> deadlines) async {
+    for (final deadline in deadlines) {
+      await _notificationService.scheduleDeadlineReminder(deadline);
+    }
+  }
+
+  Future<DeadlineModel> _pendingModelForSave(Deadline deadline) async {
+    final existingDeadline = await _localDataSource.getDeadlineById(
+      deadline.id,
+    );
+    final shouldCreate =
+        existingDeadline?.syncStatus == SyncStatus.pendingCreate ||
+        (existingDeadline == null && deadline.remoteId == null);
+
+    return DeadlineModel.fromEntity(
+      deadline.copyWith(
+        syncStatus: shouldCreate
+            ? SyncStatus.pendingCreate
+            : SyncStatus.pendingUpdate,
+      ),
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../domain/entities/deadline.dart';
 import '../models/deadline_model.dart';
 
 class DeadlineLocalDataSource {
@@ -12,6 +13,8 @@ class DeadlineLocalDataSource {
     final database = await _appDatabase.database;
     final rows = await database.query(
       AppDatabase.deadlinesTable,
+      where: 'sync_status != ?',
+      whereArgs: ['pendingDelete'],
       orderBy: 'due_date IS NULL, due_date ASC, created_at DESC',
     );
 
@@ -107,10 +110,7 @@ class DeadlineLocalDataSource {
 
       batch.insert(
         AppDatabase.processedEmailsTable,
-        {
-          'email_id': emailId,
-          'processed_at': processedAt,
-        },
+        {'email_id': emailId, 'processed_at': processedAt},
         conflictAlgorithm: ConflictAlgorithm.ignore,
       );
     }
@@ -124,6 +124,17 @@ class DeadlineLocalDataSource {
       AppDatabase.deadlinesTable,
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> markDeadlinePendingDelete(DeadlineModel deadline) async {
+    await upsertDeadline(
+      DeadlineModel.fromEntity(
+        deadline.copyWith(
+          syncStatus: SyncStatus.pendingDelete,
+          updatedAt: DateTime.now(),
+        ),
+      ),
     );
   }
 
