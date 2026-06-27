@@ -80,11 +80,10 @@ class LocalNotificationService {
       return;
     }
 
-    final riskText = _riskMessage(deadline.riskLevel);
     await _notifications.zonedSchedule(
       _notificationId(deadline.id),
-      'Deadline reminder',
-      '$riskText${deadline.title}',
+      'Cảnh báo AI',
+      _deadlineReminderBody(deadline),
       tz.TZDateTime.from(scheduledAt, tz.local),
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -162,15 +161,35 @@ class LocalNotificationService {
     return soon.isBefore(dueDate) ? soon : null;
   }
 
-  String _riskMessage(RiskLevel riskLevel) {
+  String _deadlineReminderBody(Deadline deadline) {
+    final riskLabel = _riskLabel(deadline.riskLevel);
+    final actionText = _riskActionText(deadline.riskLevel);
+    return 'Cảnh báo AI: ${deadline.title} có rủi ro $riskLabel, $actionText';
+  }
+
+  String _riskLabel(RiskLevel riskLevel) {
     switch (riskLevel) {
-      case RiskLevel.high:
       case RiskLevel.extreme:
-        return 'High risk: ';
+        return 'RẤT CAO';
+      case RiskLevel.high:
+        return 'CAO';
       case RiskLevel.medium:
-        return 'Heads up: ';
+        return 'TRUNG BÌNH';
       case RiskLevel.low:
-        return '';
+        return 'THẤP';
+    }
+  }
+
+  String _riskActionText(RiskLevel riskLevel) {
+    switch (riskLevel) {
+      case RiskLevel.extreme:
+        return 'hãy làm ngay!';
+      case RiskLevel.high:
+        return 'nên bắt đầu ngay!';
+      case RiskLevel.medium:
+        return 'hãy sắp xếp thời gian sớm.';
+      case RiskLevel.low:
+        return 'bạn vẫn nên theo dõi tiến độ.';
     }
   }
 }
