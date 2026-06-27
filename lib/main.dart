@@ -1,12 +1,32 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'features/auth/presentation/auth_gate.dart';
+import 'features/notification/presentation/notification_bootstrap.dart';
 
-void main() {
+Future<void> main() async {
+  // Đảm bảo các dịch vụ Flutter đã được khởi tạo
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: DeadlineSyncApp()));
+  
+  try {
+    // 1. Khởi tạo Firebase (Cần cho Auth và DB)
+    await Firebase.initializeApp();
+    
+    // 2. Load biến môi trường (Cần cho AI)
+    await dotenv.load(fileName: '.env', isOptional: true);
+  } catch (e) {
+    debugPrint("Lỗi khởi tạo hệ thống: $e");
+  }
+
+  runApp(
+    const ProviderScope(
+      child: DeadlineSyncApp(),
+    ),
+  );
 }
 
 class DeadlineSyncApp extends StatelessWidget {
@@ -17,8 +37,13 @@ class DeadlineSyncApp extends StatelessWidget {
     return MaterialApp(
       title: 'DeadlineSync',
       debugShowCheckedModeBanner: false,
+      // Sử dụng theme của Thiện đã thiết kế
       theme: AppTheme.light,
-      home: const DashboardScreen(),
+      // Luôn bắt đầu từ AuthGate để kiểm tra đăng nhập, 
+      // bọc trong NotificationBootstrap để kích hoạt thông báo
+      home: const NotificationBootstrap(
+        child: AuthGate(),
+      ),
     );
   }
 }
