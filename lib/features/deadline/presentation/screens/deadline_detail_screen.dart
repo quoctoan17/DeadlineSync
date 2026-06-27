@@ -268,6 +268,7 @@ Color _accentColor(DeadlineSource source) {
   return switch (source) {
     DeadlineSource.canvas => AppColors.canvasOrange,
     DeadlineSource.outlook => AppColors.outlookBlue,
+    DeadlineSource.gmail => AppColors.gmailRed,
     DeadlineSource.manual => AppColors.manualPurple,
   };
 }
@@ -276,6 +277,7 @@ Color _backgroundColor(DeadlineSource source) {
   return switch (source) {
     DeadlineSource.canvas => AppColors.canvasSoft,
     DeadlineSource.outlook => AppColors.outlookSoft,
+    DeadlineSource.gmail => AppColors.gmailSoft,
     DeadlineSource.manual => AppColors.manualSoft,
   };
 }
@@ -284,6 +286,7 @@ String _sourceLabel(DeadlineSource source) {
   return switch (source) {
     DeadlineSource.canvas => 'Canvas',
     DeadlineSource.outlook => 'Outlook',
+    DeadlineSource.gmail => 'Gmail',
     DeadlineSource.manual => 'Manual',
   };
 }

@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../deadline/domain/entities/deadline.dart';
 
-enum DashboardSourceFilter { all, canvas, outlook, manual }
+enum DashboardSourceFilter { all, canvas, outlook, gmail, manual }
 
 enum DashboardDateFilter { all, today, tomorrow, thisWeek }
 
@@ -106,6 +106,7 @@ final visibleDeadlinesProvider = Provider<List<Deadline>>((ref) {
             deadline.source == DeadlineSource.canvas,
           DashboardSourceFilter.outlook =>
             deadline.source == DeadlineSource.outlook,
+          DashboardSourceFilter.gmail => deadline.source == DeadlineSource.gmail,
           DashboardSourceFilter.manual =>
             deadline.source == DeadlineSource.manual,
         };
@@ -159,6 +160,7 @@ String _searchText(Deadline deadline) {
   final source = switch (deadline.source) {
     DeadlineSource.canvas => 'canvas',
     DeadlineSource.outlook => 'outlook',
+    DeadlineSource.gmail => 'gmail google',
     DeadlineSource.manual => 'manual thủ công tự nhập',
   };
 
@@ -204,6 +206,7 @@ String _sourceLabel(DeadlineSource source) {
   return switch (source) {
     DeadlineSource.canvas => 'Canvas',
     DeadlineSource.outlook => 'Outlook',
+    DeadlineSource.gmail => 'Gmail',
     DeadlineSource.manual => 'Manual',
   };
 }

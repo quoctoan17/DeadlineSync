@@ -9,6 +9,7 @@ import '../../../../shared/widgets/deadline_empty_state.dart';
 import '../../../../shared/widgets/deadline_filter_chip.dart';
 import '../../../../shared/widgets/deadline_search_bar.dart';
 import '../../../../shared/widgets/deadline_summary_card.dart';
+import '../../../auth/data/auth_repository.dart';
 import '../../../ai_import/presentation/screens/ai_import_review_screen.dart';
 import '../../../ai_suggestion/presentation/screens/ai_suggestion_screen.dart';
 import '../../../deadline/domain/entities/deadline.dart';
@@ -42,6 +43,11 @@ class DashboardScreen extends ConsumerWidget {
             tooltip: 'Đồng bộ deadline',
             onPressed: () => ref.invalidate(mergedDeadlinesProvider),
             icon: const Icon(Icons.sync),
+          ),
+          IconButton(
+            tooltip: 'Đăng xuất',
+            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+            icon: const Icon(Icons.logout),
           ),
           const SizedBox(width: AppSpacing.sm),
         ],
@@ -95,6 +101,15 @@ class DashboardScreen extends ConsumerWidget {
                               selectedFilter == DashboardSourceFilter.outlook,
                           onTap: () =>
                               _selectFilter(ref, DashboardSourceFilter.outlook),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        DeadlineFilterChip(
+                          label: 'Gmail',
+                          color: AppColors.gmailRed,
+                          isSelected:
+                              selectedFilter == DashboardSourceFilter.gmail,
+                          onTap: () =>
+                              _selectFilter(ref, DashboardSourceFilter.gmail),
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         DeadlineFilterChip(
@@ -223,6 +238,9 @@ class DashboardScreen extends ConsumerWidget {
                         .length,
                     outlookCount: allDeadlines
                         .where((item) => item.source == DeadlineSource.outlook)
+                        .length,
+                    gmailCount: allDeadlines
+                        .where((item) => item.source == DeadlineSource.gmail)
                         .length,
                     manualCount: allDeadlines
                         .where((item) => item.source == DeadlineSource.manual)
@@ -588,6 +606,7 @@ class _DeadlineListItem extends StatelessWidget {
     return switch (source) {
       DeadlineSource.canvas => AppColors.canvasOrange,
       DeadlineSource.outlook => AppColors.outlookBlue,
+      DeadlineSource.gmail => AppColors.gmailRed,
       DeadlineSource.manual => AppColors.manualPurple,
     };
   }
@@ -596,6 +615,7 @@ class _DeadlineListItem extends StatelessWidget {
     return switch (source) {
       DeadlineSource.canvas => AppColors.canvasSoft,
       DeadlineSource.outlook => AppColors.outlookSoft,
+      DeadlineSource.gmail => AppColors.gmailSoft,
       DeadlineSource.manual => AppColors.manualSoft,
     };
   }
@@ -604,6 +624,7 @@ class _DeadlineListItem extends StatelessWidget {
     return switch (source) {
       DeadlineSource.canvas => 'Canvas',
       DeadlineSource.outlook => 'Outlook',
+      DeadlineSource.gmail => 'Gmail',
       DeadlineSource.manual => 'Manual',
     };
   }
