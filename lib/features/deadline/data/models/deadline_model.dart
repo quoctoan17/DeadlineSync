@@ -13,6 +13,9 @@ class DeadlineModel extends Deadline {
     required super.createdAt,
     super.updatedAt,
     super.syncStatus,
+    super.riskLevel,
+    super.aiSuggestion,
+    super.emailId,
   });
 
   factory DeadlineModel.fromEntity(Deadline deadline) {
@@ -28,6 +31,9 @@ class DeadlineModel extends Deadline {
       createdAt: deadline.createdAt,
       updatedAt: deadline.updatedAt,
       syncStatus: deadline.syncStatus,
+      riskLevel: deadline.riskLevel,
+      aiSuggestion: deadline.aiSuggestion,
+      emailId: deadline.emailId,
     );
   }
 
@@ -44,6 +50,11 @@ class DeadlineModel extends Deadline {
       createdAt: _dateTimeFromMilliseconds(map['created_at'] as int)!,
       updatedAt: _dateTimeFromMilliseconds(map['updated_at'] as int)!,
       syncStatus: SyncStatus.values.byName(map['sync_status'] as String),
+      riskLevel: RiskLevel.values.byName(
+        map['risk_level'] as String? ?? RiskLevel.low.name,
+      ),
+      aiSuggestion: map['ai_suggestion'] as String?,
+      emailId: map['email_id'] as String?,
     );
   }
 
@@ -60,6 +71,9 @@ class DeadlineModel extends Deadline {
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
       'sync_status': syncStatus.name,
+      'risk_level': riskLevel.name,
+      'ai_suggestion': aiSuggestion,
+      'email_id': emailId,
     };
   }
 
