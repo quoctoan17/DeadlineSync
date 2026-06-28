@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import 'help_screen.dart';
 import 'providers/auth_provider.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -79,13 +81,13 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.settings_outlined,
                       title: 'Cài đặt',
                       subtitle: 'Tùy chỉnh giao diện và đồng bộ',
-                      onTap: () {},
+                      onTap: () => _openSettings(context),
                     ),
                     _ProfileOption(
                       icon: Icons.notifications_none_outlined,
                       title: 'Thông báo',
                       subtitle: 'Quản lý nhắc nhở deadline',
-                      onTap: () {},
+                      onTap: () => _openSettings(context),
                     ),
                     _ProfileOption(
                       icon: Icons.security_outlined,
@@ -97,7 +99,7 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.help_outline,
                       title: 'Trợ giúp',
                       subtitle: 'Hướng dẫn sử dụng và phản hồi',
-                      onTap: () {},
+                      onTap: () => _openHelp(context),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     OutlinedButton.icon(
@@ -122,6 +124,18 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  void _openSettings(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const SettingsScreen()),
+    );
+  }
+
+  void _openHelp(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (context) => const HelpScreen()));
   }
 }
 

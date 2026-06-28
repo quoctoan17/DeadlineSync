@@ -12,13 +12,16 @@ import '../../../../shared/widgets/deadline_summary_card.dart';
 import '../../../auth/presentation/profile_screen.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../ai_import/presentation/screens/ai_import_review_screen.dart';
 import '../../../ai_suggestion/presentation/screens/ai_suggestion_screen.dart';
 import '../../../deadline/data/providers/deadline_database_providers.dart';
 import '../../../deadline/domain/entities/deadline.dart';
 import '../../../deadline/presentation/screens/deadline_detail_screen.dart';
 import '../../../deadline/presentation/widgets/manual_deadline_form_sheet.dart';
 import 'calendar_screen.dart';
+import 'integration_screen.dart';
+import 'risk_analysis_screen.dart';
+import 'subjects_screen.dart';
+import 'tasks_screen.dart';
 import '../providers/dashboard_providers.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -44,6 +47,40 @@ class DashboardScreen extends ConsumerWidget {
             tooltip: 'Gợi ý AI',
             onPressed: () => _openAiSuggestion(context),
             icon: const Icon(Icons.auto_awesome),
+          ),
+          PopupMenuButton<_DashboardMenuAction>(
+            tooltip: 'Màn hình khác',
+            icon: const Icon(Icons.dashboard_customize_outlined),
+            onSelected: (action) {
+              switch (action) {
+                case _DashboardMenuAction.tasks:
+                  _openTasks(context);
+                case _DashboardMenuAction.subjects:
+                  _openSubjects(context);
+                case _DashboardMenuAction.risk:
+                  _openRiskAnalysis(context);
+                case _DashboardMenuAction.integrations:
+                  _openIntegration(context, ref);
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: _DashboardMenuAction.tasks,
+                child: Text('Nhiệm vụ'),
+              ),
+              PopupMenuItem(
+                value: _DashboardMenuAction.subjects,
+                child: Text('Môn học'),
+              ),
+              PopupMenuItem(
+                value: _DashboardMenuAction.risk,
+                child: Text('Phân tích rủi ro'),
+              ),
+              PopupMenuItem(
+                value: _DashboardMenuAction.integrations,
+                child: Text('Kết nối nguồn'),
+              ),
+            ],
           ),
           IconButton(
             tooltip: 'Đồng bộ deadline',
@@ -325,7 +362,7 @@ class DashboardScreen extends ConsumerWidget {
             case 2:
               _openManualDeadlineSheet(context, ref);
             case 3:
-              _openAiImportReview(context, ref);
+              _openIntegration(context, ref);
             case 4:
               _openProfile(context);
           }
@@ -550,11 +587,9 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _openAiImportReview(BuildContext context, WidgetRef ref) async {
+  Future<void> _openIntegration(BuildContext context, WidgetRef ref) async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => const AiImportReviewScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (context) => const IntegrationScreen()),
     );
     if (!context.mounted) return;
     ref.invalidate(mergedDeadlinesProvider);
@@ -576,6 +611,24 @@ class DashboardScreen extends ConsumerWidget {
   void _openAiSuggestion(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (context) => const AiSuggestionScreen()),
+    );
+  }
+
+  void _openTasks(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (context) => const TasksScreen()));
+  }
+
+  void _openSubjects(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const SubjectsScreen()),
+    );
+  }
+
+  void _openRiskAnalysis(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const RiskAnalysisScreen()),
     );
   }
 }
@@ -726,3 +779,5 @@ class _DeadlineListItem extends StatelessWidget {
 }
 
 enum _ManualDeadlineAction { edit, delete }
+
+enum _DashboardMenuAction { tasks, subjects, risk, integrations }
