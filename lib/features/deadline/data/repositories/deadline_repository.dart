@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import '../../../auth/data/auth_repository.dart';
 import '../../../notification/data/services/local_notification_service.dart';
 import '../../domain/entities/deadline.dart';
@@ -104,15 +106,16 @@ class DeadlineRepository {
   }
 
   Future<DeadlineModel> _pendingModelForSave(Deadline deadline) async {
+    final safeDeadline = deadline.copyWith(riskLevel: deadline.riskLevel);
     final existingDeadline = await _localDataSource.getDeadlineById(
-      deadline.id,
+      safeDeadline.id,
     );
     final shouldCreate =
         existingDeadline?.syncStatus == SyncStatus.pendingCreate ||
-        (existingDeadline == null && deadline.remoteId == null);
+        (existingDeadline == null && safeDeadline.remoteId == null);
 
     return DeadlineModel.fromEntity(
-      deadline.copyWith(
+      safeDeadline.copyWith(
         syncStatus: shouldCreate
             ? SyncStatus.pendingCreate
             : SyncStatus.pendingUpdate,

@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -117,12 +119,37 @@ class OfflineSyncService {
       );
       if (cloudWins) {
         await _localDataSource.upsertDeadline(
-          DeadlineModel.fromEntity(
-            cloudDeadline.copyWith(syncStatus: SyncStatus.synced),
+          _mergeCloudWithLocalAiFields(
+            cloudDeadline: cloudDeadline,
+            localDeadline: localDeadline,
           ),
         );
       }
     }
+  }
+
+  DeadlineModel _mergeCloudWithLocalAiFields({
+    required DeadlineModel cloudDeadline,
+    required DeadlineModel localDeadline,
+  }) {
+    final localSuggestion = localDeadline.aiSuggestion?.trim();
+    final shouldKeepLocalSuggestion =
+        localSuggestion != null && localSuggestion.isNotEmpty;
+    final shouldKeepLocalRisk =
+        localDeadline.riskLevel != RiskLevel.low ||
+        cloudDeadline.riskLevel == RiskLevel.low;
+
+    return DeadlineModel.fromEntity(
+      cloudDeadline.copyWith(
+        syncStatus: SyncStatus.synced,
+        riskLevel: shouldKeepLocalRisk
+            ? localDeadline.riskLevel
+            : cloudDeadline.riskLevel,
+        aiSuggestion: shouldKeepLocalSuggestion
+            ? localDeadline.aiSuggestion
+            : cloudDeadline.aiSuggestion,
+      ),
+    );
   }
 
   bool _hasConnection(List<ConnectivityResult> results) {

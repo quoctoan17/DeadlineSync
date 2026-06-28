@@ -18,7 +18,7 @@ class Deadline {
   final DateTime createdAt;
   final DateTime updatedAt;
   final SyncStatus syncStatus;
-  
+
   // Các trường bổ sung cho AI (Của Toàn)
   final RiskLevel riskLevel;
   final String? aiSuggestion;
@@ -36,10 +36,11 @@ class Deadline {
     required this.createdAt,
     DateTime? updatedAt,
     this.syncStatus = SyncStatus.pendingCreate,
-    this.riskLevel = RiskLevel.low,
+    RiskLevel? riskLevel,
     this.aiSuggestion,
     this.emailId,
-  }) : updatedAt = updatedAt ?? createdAt;
+  }) : updatedAt = updatedAt ?? createdAt,
+       riskLevel = riskLevel ?? RiskLevel.low;
 
   Deadline copyWith({
     String? remoteId,
