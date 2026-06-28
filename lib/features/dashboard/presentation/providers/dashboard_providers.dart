@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../deadline/data/providers/deadline_database_providers.dart';
@@ -29,8 +30,13 @@ final dashboardSortModeProvider = StateProvider<DashboardSortMode>(
 
 final dashboardSearchQueryProvider = StateProvider<String>((ref) => '');
 
-final mergedDeadlinesProvider = FutureProvider<List<Deadline>>((ref) {
-  return ref.watch(deadlineRepositoryProvider).getLocalDeadlines();
+final mergedDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {
+  try {
+    return await ref.watch(deadlineRepositoryProvider).getLocalDeadlines();
+  } catch (error) {
+    debugPrint('Deadline database unavailable: $error');
+    return <Deadline>[];
+  }
 });
 
 final visibleDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {

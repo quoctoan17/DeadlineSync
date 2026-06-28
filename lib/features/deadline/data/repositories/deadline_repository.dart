@@ -11,7 +11,7 @@ class DeadlineRepository {
   DeadlineRepository({
     required AuthRepository authRepository,
     required DeadlineLocalDataSource localDataSource,
-    required DeadlineFirestoreDataSource firestoreDataSource,
+    required DeadlineFirestoreDataSource? firestoreDataSource,
     required LocalNotificationService notificationService,
   }) : _authRepository = authRepository,
        _localDataSource = localDataSource,
@@ -20,7 +20,7 @@ class DeadlineRepository {
 
   final AuthRepository _authRepository;
   final DeadlineLocalDataSource _localDataSource;
-  final DeadlineFirestoreDataSource _firestoreDataSource;
+  final DeadlineFirestoreDataSource? _firestoreDataSource;
   final LocalNotificationService _notificationService;
 
   Future<List<DeadlineModel>> getLocalDeadlines() {
@@ -33,7 +33,12 @@ class DeadlineRepository {
       return const Stream.empty();
     }
 
-    return _firestoreDataSource.watchDeadlines(userId);
+    final firestoreDataSource = _firestoreDataSource;
+    if (firestoreDataSource == null) {
+      return const Stream.empty();
+    }
+
+    return firestoreDataSource.watchDeadlines(userId);
   }
 
   Future<void> saveDeadline(Deadline deadline) async {
@@ -54,7 +59,8 @@ class DeadlineRepository {
     await _scheduleReminders(deadlines);
 
     final userId = _currentUserId;
-    if (userId == null) {
+    final firestoreDataSource = _firestoreDataSource;
+    if (userId == null || firestoreDataSource == null) {
       return;
     }
 
@@ -67,7 +73,7 @@ class DeadlineRepository {
           )
           .toList();
 
-      await _firestoreDataSource.upsertDeadlines(
+      await firestoreDataSource.upsertDeadlines(
         userId: userId,
         deadlines: syncedModels,
       );
@@ -83,13 +89,16 @@ class DeadlineRepository {
     await _notificationService.cancelDeadlineReminder(deadlineId);
 
     final userId = _currentUserId;
-    if (userId == null || existingDeadline == null) {
+    final firestoreDataSource = _firestoreDataSource;
+    if (userId == null ||
+        firestoreDataSource == null ||
+        existingDeadline == null) {
       await _localDataSource.deleteDeadline(deadlineId);
       return;
     }
 
     try {
-      await _firestoreDataSource.deleteDeadline(
+      await firestoreDataSource.deleteDeadline(
         userId: userId,
         deadlineId: existingDeadline.remoteId ?? existingDeadline.id,
       );
