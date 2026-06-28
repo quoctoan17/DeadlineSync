@@ -11,6 +11,9 @@ class DeadlineCard extends StatelessWidget {
     required this.accentColor,
     required this.sourceBackground,
     this.isUrgent = false,
+    this.riskLabel,
+    this.riskColor,
+    this.aiSuggestion,
     this.onTap,
     this.trailing,
     super.key,
@@ -22,6 +25,9 @@ class DeadlineCard extends StatelessWidget {
   final Color accentColor;
   final Color sourceBackground;
   final bool isUrgent;
+  final String? riskLabel;
+  final Color? riskColor;
+  final String? aiSuggestion;
   final VoidCallback? onTap;
   final Widget? trailing;
 
@@ -78,11 +84,44 @@ class DeadlineCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    _SourceBadge(
-                      label: source,
-                      color: accentColor,
-                      backgroundColor: sourceBackground,
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        _SourceBadge(
+                          label: source,
+                          color: accentColor,
+                          backgroundColor: sourceBackground,
+                        ),
+                        if (riskLabel != null && riskColor != null)
+                          _RiskBadge(label: riskLabel!, color: riskColor!),
+                      ],
                     ),
+                    if (aiSuggestion?.trim().isNotEmpty == true) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.auto_awesome,
+                            color: AppColors.success,
+                            size: 14,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
+                            child: Text(
+                              aiSuggestion!,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.success,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -155,6 +194,34 @@ class _UrgentBadge extends StatelessWidget {
         style: TextStyle(
           color: Colors.white,
           fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _RiskBadge extends StatelessWidget {
+  const _RiskBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        'Rủi ro: $label',
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
       ),
