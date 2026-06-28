@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../deadline/data/providers/deadline_database_providers.dart';
 import '../../../deadline/domain/entities/deadline.dart';
 
 enum DashboardSourceFilter { all, canvas, outlook, gmail, manual }
@@ -28,67 +30,16 @@ final dashboardSortModeProvider = StateProvider<DashboardSortMode>(
 
 final dashboardSearchQueryProvider = StateProvider<String>((ref) => '');
 
-final manualDeadlinesProvider =
-    StateNotifierProvider<ManualDeadlineNotifier, List<Deadline>>(
-      (ref) => ManualDeadlineNotifier(),
-    );
-
-final mergedDeadlinesProvider = Provider<List<Deadline>>((ref) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final manualDeadlines = ref.watch(manualDeadlinesProvider);
-
-  return [
-    Deadline(
-      id: 'canvas-mobile-ui',
-      title: 'Nộp bài Mobile App UI',
-      dueDate: today.add(const Duration(hours: 23, minutes: 59)),
-      description: 'Mobile Development',
-      source: DeadlineSource.canvas,
-      priority: PriorityLevel.high,
-      createdAt: today.subtract(const Duration(days: 4)),
-    ),
-    Deadline(
-      id: 'outlook-team-meeting',
-      title: 'Họp nhóm DeadlineSync',
-      dueDate: today.add(const Duration(days: 1, hours: 9)),
-      description: 'Microsoft Calendar',
-      source: DeadlineSource.outlook,
-      priority: PriorityLevel.medium,
-      createdAt: today.subtract(const Duration(days: 2)),
-    ),
-    Deadline(
-      id: 'canvas-clean-architecture',
-      title: 'Quiz Clean Architecture',
-      dueDate: today.add(const Duration(days: 2, hours: 20)),
-      description: 'Software Design',
-      source: DeadlineSource.canvas,
-      priority: PriorityLevel.medium,
-      createdAt: today.subtract(const Duration(days: 3)),
-    ),
-    Deadline(
-      id: 'outlook-project-demo',
-      title: 'Demo tiến độ dự án',
-      dueDate: today.add(const Duration(days: 4, hours: 14)),
-      description: 'Outlook Calendar',
-      source: DeadlineSource.outlook,
-      priority: PriorityLevel.high,
-      createdAt: today.subtract(const Duration(days: 1)),
-    ),
-    Deadline(
-      id: 'canvas-final-report',
-      title: 'Nộp báo cáo cuối kỳ',
-      dueDate: today.add(const Duration(days: 7, hours: 22)),
-      description: 'Project Management',
-      source: DeadlineSource.canvas,
-      priority: PriorityLevel.low,
-      createdAt: today,
-    ),
-    ...manualDeadlines,
-  ];
+final mergedDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {
+  try {
+    return await ref.watch(deadlineRepositoryProvider).getLocalDeadlines();
+  } catch (error) {
+    debugPrint('Deadline database unavailable: $error');
+    return <Deadline>[];
+  }
 });
 
-final visibleDeadlinesProvider = Provider<List<Deadline>>((ref) {
+final visibleDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {
   final filter = ref.watch(dashboardSourceFilterProvider);
   final dateFilter = ref.watch(dashboardDateFilterProvider);
   final priorityFilter = ref.watch(dashboardPriorityFilterProvider);
@@ -97,8 +48,7 @@ final visibleDeadlinesProvider = Provider<List<Deadline>>((ref) {
       .watch(dashboardSearchQueryProvider)
       .trim()
       .toLowerCase();
-  final deadlines = ref
-      .watch(mergedDeadlinesProvider)
+  final deadlines = (await ref.watch(mergedDeadlinesProvider.future))
       .where((deadline) {
         final matchesSource = switch (filter) {
           DashboardSourceFilter.all => true,
@@ -106,7 +56,8 @@ final visibleDeadlinesProvider = Provider<List<Deadline>>((ref) {
             deadline.source == DeadlineSource.canvas,
           DashboardSourceFilter.outlook =>
             deadline.source == DeadlineSource.outlook,
-          DashboardSourceFilter.gmail => deadline.source == DeadlineSource.gmail,
+          DashboardSourceFilter.gmail =>
+            deadline.source == DeadlineSource.gmail,
           DashboardSourceFilter.manual =>
             deadline.source == DeadlineSource.manual,
         };
@@ -209,43 +160,4 @@ String _sourceLabel(DeadlineSource source) {
     DeadlineSource.gmail => 'Gmail',
     DeadlineSource.manual => 'Manual',
   };
-}
-
-class ManualDeadlineNotifier extends StateNotifier<List<Deadline>> {
-  ManualDeadlineNotifier() : super(const []);
-
-  void addDeadline({
-    required String title,
-    required DateTime dueDate,
-    required String description,
-    required PriorityLevel priority,
-  }) {
-    final now = DateTime.now();
-
-    state = [
-      ...state,
-      Deadline(
-        id: 'manual-${now.microsecondsSinceEpoch}',
-        title: title.trim(),
-        dueDate: dueDate,
-        description: description.trim().isEmpty ? null : description.trim(),
-        source: DeadlineSource.manual,
-        priority: priority,
-        createdAt: now,
-      ),
-    ];
-  }
-
-  void updateDeadline(Deadline updatedDeadline) {
-    state = [
-      for (final deadline in state)
-        if (deadline.id == updatedDeadline.id) updatedDeadline else deadline,
-    ];
-  }
-
-  void deleteDeadline(String id) {
-    state = state
-        .where((deadline) => deadline.id != id)
-        .toList(growable: false);
-  }
 }

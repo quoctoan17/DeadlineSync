@@ -21,13 +21,21 @@ class _NotificationBootstrapState extends ConsumerState<NotificationBootstrap> {
   void initState() {
     super.initState();
     Future.microtask(() {
-      unawaited(ref.read(pushNotificationServiceProvider).initialize());
-      unawaited(ref.read(offlineSyncServiceProvider).start());
+      unawaited(_startSafely(ref.read(pushNotificationServiceProvider).initialize));
+      unawaited(_startSafely(ref.read(offlineSyncServiceProvider).start));
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return widget.child;
+  }
+
+  Future<void> _startSafely(Future<void> Function() start) async {
+    try {
+      await start();
+    } catch (error) {
+      debugPrint('Background bootstrap skipped: $error');
+    }
   }
 }

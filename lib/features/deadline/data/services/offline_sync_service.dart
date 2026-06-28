@@ -14,7 +14,7 @@ class OfflineSyncService {
   OfflineSyncService({
     required AuthRepository authRepository,
     required DeadlineLocalDataSource localDataSource,
-    required DeadlineFirestoreDataSource firestoreDataSource,
+    required DeadlineFirestoreDataSource? firestoreDataSource,
     required Connectivity connectivity,
   }) : _authRepository = authRepository,
        _localDataSource = localDataSource,
@@ -23,13 +23,17 @@ class OfflineSyncService {
 
   final AuthRepository _authRepository;
   final DeadlineLocalDataSource _localDataSource;
-  final DeadlineFirestoreDataSource _firestoreDataSource;
+  final DeadlineFirestoreDataSource? _firestoreDataSource;
   final Connectivity _connectivity;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isSyncing = false;
 
   Future<void> start() async {
+    if (_firestoreDataSource == null) {
+      return;
+    }
+
     _connectivitySubscription ??= _connectivity.onConnectivityChanged.listen((
       results,
     ) {
@@ -51,20 +55,24 @@ class OfflineSyncService {
 
   Future<void> syncNow() async {
     final userId = _authRepository.currentUser?.uid;
-    if (userId == null || _isSyncing) {
+    final firestoreDataSource = _firestoreDataSource;
+    if (userId == null || firestoreDataSource == null || _isSyncing) {
       return;
     }
 
     _isSyncing = true;
     try {
-      await _pushPendingLocalChanges(userId);
-      await _pullCloudChanges(userId);
+      await _pushPendingLocalChanges(userId, firestoreDataSource);
+      await _pullCloudChanges(userId, firestoreDataSource);
     } finally {
       _isSyncing = false;
     }
   }
 
-  Future<void> _pushPendingLocalChanges(String userId) async {
+  Future<void> _pushPendingLocalChanges(
+    String userId,
+    DeadlineFirestoreDataSource firestoreDataSource,
+  ) async {
     final pendingDeadlines = await _localDataSource.getPendingSyncDeadlines();
 
     for (final deadline in pendingDeadlines) {
@@ -74,14 +82,14 @@ class OfflineSyncService {
           final syncedDeadline = DeadlineModel.fromEntity(
             deadline.copyWith(syncStatus: SyncStatus.synced),
           );
-          await _firestoreDataSource.upsertDeadline(
+          await firestoreDataSource.upsertDeadline(
             userId: userId,
             deadline: syncedDeadline,
           );
           await _localDataSource.upsertDeadline(syncedDeadline);
           break;
         case SyncStatus.pendingDelete:
-          await _firestoreDataSource.deleteDeadline(
+          await firestoreDataSource.deleteDeadline(
             userId: userId,
             deadlineId: deadline.remoteId ?? deadline.id,
           );
@@ -93,8 +101,11 @@ class OfflineSyncService {
     }
   }
 
-  Future<void> _pullCloudChanges(String userId) async {
-    final cloudDeadlines = await _firestoreDataSource.getDeadlines(userId);
+  Future<void> _pullCloudChanges(
+    String userId,
+    DeadlineFirestoreDataSource firestoreDataSource,
+  ) async {
+    final cloudDeadlines = await firestoreDataSource.getDeadlines(userId);
 
     for (final cloudDeadline in cloudDeadlines) {
       final localDeadline = await _localDataSource.getDeadlineById(
