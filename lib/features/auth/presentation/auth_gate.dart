@@ -2,23 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../onboarding/presentation/onboarding_screen.dart';
 import '../data/auth_repository.dart';
 import 'login_screen.dart';
 import 'providers/auth_provider.dart';
 
-class AuthGate extends ConsumerWidget {
+class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final firebaseAuthState = ref.watch(authStateChangesProvider);
-    final googleAuthState = ref.watch(authStateProvider);
+  ConsumerState<AuthGate> createState() => _AuthGateState();
+}
 
-    final firebaseUser = firebaseAuthState.valueOrNull;
-    final googleUser = googleAuthState.valueOrNull;
-    if (firebaseUser != null || googleUser != null) {
-      return const DashboardScreen();
-    }
+class _AuthGateState extends ConsumerState<AuthGate> {
+  bool _hasStarted = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = ref.watch(authStateChangesProvider);
+
+    return authState.when(
+      data: (user) {
+        if (user == null) {
+          if (!_hasStarted) {
+            return OnboardingScreen(
+              onStart: () => setState(() => _hasStarted = true),
+            );
+          }
+
+          return const LoginScreen();
+        }
 
     if (firebaseAuthState.isLoading || googleAuthState.isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));

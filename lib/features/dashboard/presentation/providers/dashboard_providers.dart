@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../deadline/data/providers/deadline_database_providers.dart';
 import '../../../deadline/domain/entities/deadline.dart';
 
-enum DashboardSourceFilter { all, canvas, outlook, gmail, manual }
+enum DashboardSourceFilter { all, gmail, manual }
 
 enum DashboardDateFilter { all, today, tomorrow, thisWeek }
 
@@ -30,13 +30,71 @@ final dashboardSortModeProvider = StateProvider<DashboardSortMode>(
 
 final dashboardSearchQueryProvider = StateProvider<String>((ref) => '');
 
-final mergedDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {
-  try {
-    return await ref.watch(deadlineRepositoryProvider).getLocalDeadlines();
-  } catch (error) {
-    debugPrint('Deadline database unavailable: $error');
-    return <Deadline>[];
-  }
+final manualDeadlinesProvider =
+    StateNotifierProvider<ManualDeadlineNotifier, List<Deadline>>(
+      (ref) => ManualDeadlineNotifier(),
+    );
+
+final mergedDeadlinesProvider = Provider<List<Deadline>>((ref) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final manualDeadlines = ref.watch(manualDeadlinesProvider);
+
+  return [
+    Deadline(
+      id: 'gmail-mobile-ui',
+      title: 'Nộp bài Mobile App UI',
+      dueDate: today.add(const Duration(hours: 23, minutes: 59)),
+      description: 'Mobile Development',
+      source: DeadlineSource.gmail,
+      priority: PriorityLevel.high,
+      riskLevel: RiskLevel.high,
+      aiSuggestion: 'Nên xử lý trước vì deadline trong hôm nay.',
+      createdAt: today.subtract(const Duration(days: 4)),
+    ),
+    Deadline(
+      id: 'manual-team-meeting',
+      title: 'Họp nhóm DeadlineSync',
+      dueDate: today.add(const Duration(days: 1, hours: 9)),
+      description: 'Thống nhất demo và phân công fix bug',
+      source: DeadlineSource.manual,
+      priority: PriorityLevel.medium,
+      riskLevel: RiskLevel.medium,
+      createdAt: today.subtract(const Duration(days: 2)),
+    ),
+    Deadline(
+      id: 'gmail-clean-architecture',
+      title: 'Quiz Clean Architecture',
+      dueDate: today.add(const Duration(days: 2, hours: 20)),
+      description: 'Software Design',
+      source: DeadlineSource.gmail,
+      priority: PriorityLevel.medium,
+      riskLevel: RiskLevel.medium,
+      createdAt: today.subtract(const Duration(days: 3)),
+    ),
+    Deadline(
+      id: 'gmail-project-demo',
+      title: 'Demo tiến độ dự án',
+      dueDate: today.add(const Duration(days: 4, hours: 14)),
+      description: 'Email từ giảng viên Mobile App',
+      source: DeadlineSource.gmail,
+      priority: PriorityLevel.high,
+      riskLevel: RiskLevel.high,
+      aiSuggestion: 'Chuẩn bị bản demo trước ít nhất một ngày.',
+      createdAt: today.subtract(const Duration(days: 1)),
+    ),
+    Deadline(
+      id: 'gmail-final-report',
+      title: 'Nộp báo cáo cuối kỳ',
+      dueDate: today.add(const Duration(days: 7, hours: 22)),
+      description: 'Project Management',
+      source: DeadlineSource.gmail,
+      priority: PriorityLevel.low,
+      riskLevel: RiskLevel.low,
+      createdAt: today,
+    ),
+    ...manualDeadlines,
+  ];
 });
 
 final visibleDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {
@@ -52,10 +110,6 @@ final visibleDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {
       .where((deadline) {
         final matchesSource = switch (filter) {
           DashboardSourceFilter.all => true,
-          DashboardSourceFilter.canvas =>
-            deadline.source == DeadlineSource.canvas,
-          DashboardSourceFilter.outlook =>
-            deadline.source == DeadlineSource.outlook,
           DashboardSourceFilter.gmail =>
             deadline.source == DeadlineSource.gmail,
           DashboardSourceFilter.manual =>
@@ -111,7 +165,7 @@ String _searchText(Deadline deadline) {
   final source = switch (deadline.source) {
     DeadlineSource.canvas => 'canvas',
     DeadlineSource.outlook => 'outlook',
-    DeadlineSource.gmail => 'gmail google',
+    DeadlineSource.gmail => 'gmail google email',
     DeadlineSource.manual => 'manual thủ công tự nhập',
   };
 
