@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,11 +14,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  bool _isRegisterMode = false;
   bool _isLoading = false;
   bool _isConnectingGmail = false;
   String? _errorMessage;
@@ -68,54 +62,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final authRepository = ref.read(authRepositoryProvider);
-
-      if (_isRegisterMode) {
-        await authRepository.signUp(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-      } else {
-        await authRepository.signIn(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
-      }
-    } on FirebaseAuthException catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = _mapFirebaseAuthError(error);
-      });
+      await ref.read(authControllerProvider).login();
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Something went wrong. Please try again.';
+        _errorMessage = 'Không đăng nhập được Google: $error';
       });
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
-    }
-  }
-
-  String _mapFirebaseAuthError(FirebaseAuthException error) {
-    switch (error.code) {
-      case 'email-already-in-use':
-        return 'This email is already registered.';
-      case 'invalid-email':
-        return 'Please enter a valid email address.';
-      case 'user-not-found':
-      case 'wrong-password':
-      case 'invalid-credential':
-        return 'Email or password is incorrect.';
-      case 'weak-password':
-        return 'Password should be at least 6 characters.';
-      case 'network-request-failed':
-        return 'Network error. Please check your connection.';
-      default:
-        return error.message ?? 'Authentication failed.';
     }
   }
 

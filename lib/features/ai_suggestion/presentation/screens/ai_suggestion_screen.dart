@@ -1,79 +1,116 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../deadline/data/providers/deadline_database_providers.dart';
+import '../../../deadline/domain/entities/deadline.dart';
+import '../../../deadline/presentation/providers/ai_provider.dart';
 
-class AiSuggestionScreen extends StatefulWidget {
+class AiSuggestionScreen extends ConsumerStatefulWidget {
   const AiSuggestionScreen({super.key});
 
   @override
-  State<AiSuggestionScreen> createState() => _AiSuggestionScreenState();
+  ConsumerState<AiSuggestionScreen> createState() => _AiSuggestionScreenState();
 }
 
-class _AiSuggestionScreenState extends State<AiSuggestionScreen> {
-  final Set<String> _appliedSuggestionIds = {};
-  final Set<String> _hiddenSuggestionIds = {};
+class _AiSuggestionScreenState extends ConsumerState<AiSuggestionScreen> {
+  late Future<List<Deadline>> _analysisFuture;
+  final Set<String> _appliedDeadlineIds = {};
+  final Set<String> _hiddenDeadlineIds = {};
 
-  List<_AiSuggestion> get _visibleSuggestions {
-    return _suggestions
-        .where((suggestion) => !_hiddenSuggestionIds.contains(suggestion.id))
-        .toList(growable: false);
+  @override
+  void initState() {
+    super.initState();
+    _analysisFuture = _loadSuggestions();
   }
 
   @override
   Widget build(BuildContext context) {
-    final visibleSuggestions = _visibleSuggestions;
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Gợi ý AI')),
+      appBar: AppBar(
+        title: const Text('Gợi ý AI'),
+        actions: [
+          IconButton(
+            tooltip: 'Phân tích lại',
+            onPressed: _reload,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 820),
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                const _SuggestionHeader(),
-                const SizedBox(height: AppSpacing.lg),
-                const _FocusPlanPanel(),
-                const SizedBox(height: AppSpacing.lg),
-                Row(
+            child: FutureBuilder<List<Deadline>>(
+              future: _analysisFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      child: Text('Không phân tích được AI: ${snapshot.error}'),
+                    ),
+                  );
+                }
+
+                final analyzedDeadlines = snapshot.data ?? const <Deadline>[];
+                final visibleDeadlines = analyzedDeadlines
+                    .where(
+                      (deadline) => !_hiddenDeadlineIds.contains(deadline.id),
+                    )
+                    .toList(growable: false);
+
+                return ListView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
-                    const Expanded(
-                      child: Text(
-                        'Đề xuất hôm nay',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
+                    const _SuggestionHeader(),
+                    const SizedBox(height: AppSpacing.lg),
+                    _FocusPlanPanel(deadlines: analyzedDeadlines),
+                    const SizedBox(height: AppSpacing.lg),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Đề xuất hôm nay',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    Text(
-                      '${visibleSuggestions.length} gợi ý',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                if (visibleSuggestions.isEmpty)
-                  const _EmptySuggestionState()
-                else
-                  for (final suggestion in visibleSuggestions) ...[
-                    _SuggestionCard(
-                      suggestion: suggestion,
-                      applied: _appliedSuggestionIds.contains(suggestion.id),
-                      onApply: () => _applySuggestion(suggestion),
-                      onHide: () => _hideSuggestion(suggestion),
+                        Text(
+                          '${visibleDeadlines.length} gợi ý',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.md),
+                    if (visibleDeadlines.isEmpty)
+                      const _EmptySuggestionState()
+                    else
+                      for (final deadline in visibleDeadlines) ...[
+                        _SuggestionCard(
+                          deadline: deadline,
+                          applied: _appliedDeadlineIds.contains(deadline.id),
+                          onApply: () => _applySuggestion(deadline),
+                          onHide: () => _hideSuggestion(deadline),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                   ],
-              ],
+                );
+              },
             ),
           ),
         ),
@@ -81,15 +118,30 @@ class _AiSuggestionScreenState extends State<AiSuggestionScreen> {
     );
   }
 
-  void _applySuggestion(_AiSuggestion suggestion) {
-    setState(() => _appliedSuggestionIds.add(suggestion.id));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Đã áp dụng: ${suggestion.title}')));
+  Future<List<Deadline>> _loadSuggestions() async {
+    final deadlines = await ref
+        .read(deadlineRepositoryProvider)
+        .getLocalDeadlines();
+    return ref.read(aiServiceProvider).analyzeOverallRisk(deadlines);
   }
 
-  void _hideSuggestion(_AiSuggestion suggestion) {
-    setState(() => _hiddenSuggestionIds.add(suggestion.id));
+  void _reload() {
+    setState(() {
+      _hiddenDeadlineIds.clear();
+      _appliedDeadlineIds.clear();
+      _analysisFuture = _loadSuggestions();
+    });
+  }
+
+  void _applySuggestion(Deadline deadline) {
+    setState(() => _appliedDeadlineIds.add(deadline.id));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Đã áp dụng: ${deadline.title}')));
+  }
+
+  void _hideSuggestion(Deadline deadline) {
+    setState(() => _hiddenDeadlineIds.add(deadline.id));
   }
 }
 
@@ -123,7 +175,7 @@ class _SuggestionHeader extends StatelessWidget {
           ),
           SizedBox(height: AppSpacing.sm),
           Text(
-            'AI gợi ý thứ tự làm việc dựa trên hạn nộp, độ ưu tiên và mức rủi ro của từng deadline.',
+            'Gemini phân tích deadline thật trong database để gợi ý thứ tự làm việc và mức rủi ro.',
             style: TextStyle(color: AppColors.border, fontSize: 14),
           ),
         ],
@@ -133,10 +185,23 @@ class _SuggestionHeader extends StatelessWidget {
 }
 
 class _FocusPlanPanel extends StatelessWidget {
-  const _FocusPlanPanel();
+  const _FocusPlanPanel({required this.deadlines});
+
+  final List<Deadline> deadlines;
 
   @override
   Widget build(BuildContext context) {
+    final focusItems = [...deadlines]
+      ..sort((left, right) {
+        final riskResult = _riskWeight(
+          right.riskLevel,
+        ).compareTo(_riskWeight(left.riskLevel));
+        if (riskResult != 0) return riskResult;
+        final leftDue = left.dueDate ?? DateTime(9999);
+        final rightDue = right.dueDate ?? DateTime(9999);
+        return leftDue.compareTo(rightDue);
+      });
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -144,10 +209,10 @@ class _FocusPlanPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Kế hoạch tập trung',
             style: TextStyle(
               color: AppColors.textPrimary,
@@ -155,34 +220,18 @@ class _FocusPlanPanel extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _FocusSlot(
-                  time: '08:00',
-                  title: 'Xử lý deadline gấp',
-                  color: AppColors.danger,
-                ),
+          const SizedBox(height: AppSpacing.md),
+          if (focusItems.isEmpty)
+            const Text('Chưa có deadline để AI lập kế hoạch.')
+          else
+            for (final entry in focusItems.take(3).indexed) ...[
+              _FocusSlot(
+                time: ['08:00', '14:00', '20:00'][entry.$1],
+                title: entry.$2.title,
+                color: _riskColor(entry.$2.riskLevel),
               ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _FocusSlot(
-                  time: '14:00',
-                  title: 'Ôn phần quiz',
-                  color: AppColors.warning,
-                ),
-              ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _FocusSlot(
-                  time: '20:00',
-                  title: 'Hoàn thiện báo cáo',
-                  color: AppColors.success,
-                ),
-              ),
+              if (entry.$1 < 2) const SizedBox(height: AppSpacing.sm),
             ],
-          ),
         ],
       ),
     );
@@ -203,15 +252,13 @@ class _FocusSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 92),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
           Text(
             time,
@@ -221,13 +268,15 @@ class _FocusSlot extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -238,19 +287,21 @@ class _FocusSlot extends StatelessWidget {
 
 class _SuggestionCard extends StatelessWidget {
   const _SuggestionCard({
-    required this.suggestion,
+    required this.deadline,
     required this.applied,
     required this.onApply,
     required this.onHide,
   });
 
-  final _AiSuggestion suggestion;
+  final Deadline deadline;
   final bool applied;
   final VoidCallback onApply;
   final VoidCallback onHide;
 
   @override
   Widget build(BuildContext context) {
+    final riskColor = _riskColor(deadline.riskLevel);
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -268,10 +319,10 @@ class _SuggestionCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: suggestion.color.withValues(alpha: 0.12),
+                  color: riskColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(suggestion.icon, color: suggestion.color),
+                child: Icon(Icons.auto_awesome, color: riskColor),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -279,7 +330,7 @@ class _SuggestionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      suggestion.title,
+                      deadline.title,
                       style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 16,
@@ -288,7 +339,9 @@ class _SuggestionCard extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      suggestion.reason,
+                      deadline.aiSuggestion?.isNotEmpty == true
+                          ? deadline.aiSuggestion!
+                          : 'AI chưa có lời khuyên riêng, hãy kiểm tra deadline và chia nhỏ công việc.',
                       style: const TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 13,
@@ -297,7 +350,10 @@ class _SuggestionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _ImpactBadge(label: suggestion.impact, color: suggestion.color),
+              _ImpactBadge(
+                label: _riskLabel(deadline.riskLevel),
+                color: riskColor,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -386,50 +442,29 @@ class _EmptySuggestionState extends StatelessWidget {
   }
 }
 
-class _AiSuggestion {
-  const _AiSuggestion({
-    required this.id,
-    required this.title,
-    required this.reason,
-    required this.impact,
-    required this.icon,
-    required this.color,
-  });
-
-  final String id;
-  final String title;
-  final String reason;
-  final String impact;
-  final IconData icon;
-  final Color color;
+int _riskWeight(RiskLevel riskLevel) {
+  return switch (riskLevel) {
+    RiskLevel.low => 1,
+    RiskLevel.medium => 2,
+    RiskLevel.high => 3,
+    RiskLevel.extreme => 4,
+  };
 }
 
-const _suggestions = [
-  _AiSuggestion(
-    id: 'prioritize-mobile-ui',
-    title: 'Làm Mobile App UI trước',
-    reason:
-        'Deadline gần nhất và đang có mức ưu tiên cao, nên xử lý trước các việc ít rủi ro hơn.',
-    impact: 'Cao',
-    icon: Icons.priority_high,
-    color: AppColors.danger,
-  ),
-  _AiSuggestion(
-    id: 'split-report',
-    title: 'Chia báo cáo cuối kỳ thành 3 phần',
-    reason:
-        'AI thấy deadline còn xa nhưng khối lượng lớn, nên chia nhỏ để tránh dồn việc cuối tuần.',
-    impact: 'Vừa',
-    icon: Icons.account_tree_outlined,
-    color: AppColors.warning,
-  ),
-  _AiSuggestion(
-    id: 'prepare-demo',
-    title: 'Chuẩn bị checklist demo',
-    reason:
-        'Buổi demo có liên quan nhiều task, thêm checklist sẽ giảm rủi ro quên bước khi trình bày.',
-    impact: 'Ổn định',
-    icon: Icons.fact_check_outlined,
-    color: AppColors.success,
-  ),
-];
+Color _riskColor(RiskLevel riskLevel) {
+  return switch (riskLevel) {
+    RiskLevel.low => AppColors.success,
+    RiskLevel.medium => AppColors.warning,
+    RiskLevel.high => AppColors.danger,
+    RiskLevel.extreme => AppColors.textPrimary,
+  };
+}
+
+String _riskLabel(RiskLevel riskLevel) {
+  return switch (riskLevel) {
+    RiskLevel.low => 'Thấp',
+    RiskLevel.medium => 'Vừa',
+    RiskLevel.high => 'Cao',
+    RiskLevel.extreme => 'Rất cao',
+  };
+}

@@ -218,21 +218,24 @@ class _ManualDeadlineFormSheetState extends State<ManualDeadlineFormSheet> {
     if (!_formKey.currentState!.validate()) return;
 
     final initialDeadline = widget.initialDeadline;
+    final now = DateTime.now();
     final result = initialDeadline == null
         ? Deadline(
-            id: '',
+            id: 'manual-${now.microsecondsSinceEpoch}',
             title: _titleController.text.trim(),
             dueDate: _dueDate,
             description: _descriptionController.text.trim(),
             source: DeadlineSource.manual,
             priority: _priority,
-            createdAt: DateTime.now(),
+            createdAt: now,
+            updatedAt: now,
           )
         : initialDeadline.copyWith(
             title: _titleController.text.trim(),
             dueDate: _dueDate,
             description: _descriptionController.text.trim(),
             priority: _priority,
+            updatedAt: now,
           );
 
     Navigator.of(context).pop(result);

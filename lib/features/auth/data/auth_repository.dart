@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(FirebaseAuth.instance);
+  final firebaseAuth = Firebase.apps.isEmpty ? null : FirebaseAuth.instance;
+  return AuthRepository(firebaseAuth);
 });
 
 final authStateChangesProvider = StreamProvider<User?>((ref) {
@@ -12,19 +14,24 @@ final authStateChangesProvider = StreamProvider<User?>((ref) {
 class AuthRepository {
   AuthRepository(this._firebaseAuth);
 
-  final FirebaseAuth _firebaseAuth;
+  final FirebaseAuth? _firebaseAuth;
 
   Stream<User?> authStateChanges() {
-    return _firebaseAuth.authStateChanges();
+    return _firebaseAuth?.authStateChanges() ?? Stream.value(null);
   }
 
-  User? get currentUser => _firebaseAuth.currentUser;
+  User? get currentUser => _firebaseAuth?.currentUser;
 
   Future<UserCredential> signIn({
     required String email,
     required String password,
   }) {
-    return _firebaseAuth.signInWithEmailAndPassword(
+    final firebaseAuth = _firebaseAuth;
+    if (firebaseAuth == null) {
+      throw StateError('Firebase Auth is not initialized.');
+    }
+
+    return firebaseAuth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
@@ -34,13 +41,18 @@ class AuthRepository {
     required String email,
     required String password,
   }) {
-    return _firebaseAuth.createUserWithEmailAndPassword(
+    final firebaseAuth = _firebaseAuth;
+    if (firebaseAuth == null) {
+      throw StateError('Firebase Auth is not initialized.');
+    }
+
+    return firebaseAuth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
   }
 
   Future<void> signOut() {
-    return _firebaseAuth.signOut();
+    return _firebaseAuth?.signOut() ?? Future.value();
   }
 }

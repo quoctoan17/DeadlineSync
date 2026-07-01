@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import 'providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -10,105 +13,152 @@ class ProfileScreen extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tài khoản của tôi'),
-        centerTitle: true,
-      ),
-      body: authState.when(
-        data: (user) {
-          if (user == null) {
-            return const Center(child: Text("Vui lòng đăng nhập"));
-          }
+      appBar: AppBar(title: const Text('Tài khoản')),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 760),
+            child: authState.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text('Lỗi: $error')),
+              data: (user) {
+                if (user == null) {
+                  return const Center(child: Text('Vui lòng đăng nhập Google'));
+                }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                // Avatar lấy từ Google
-                CircleAvatar(
-                  radius: 50,
-                  backgroundImage: user.photoUrl != null 
-                      ? NetworkImage(user.photoUrl!) 
-                      : null,
-                  child: user.photoUrl == null 
-                      ? const Icon(Icons.person, size: 50) 
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                
-                // Tên người dùng
-                Text(
-                  user.displayName ?? 'Người dùng',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  user.email,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                
-                const SizedBox(height: 32),
-                const Divider(),
-                
-                // Các tùy chọn cài đặt
-                _buildProfileOption(
-                  icon: Icons.notifications_none_outlined,
-                  title: 'Thông báo',
-                  subtitle: 'Quản lý nhắc nhở deadline',
-                  onTap: () {},
-                ),
-                _buildProfileOption(
-                  icon: Icons.security_outlined,
-                  title: 'Quyền truy cập Gmail',
-                  subtitle: 'Trạng thái: Đã kết nối',
-                  onTap: () {},
-                ),
-                _buildProfileOption(
-                  icon: Icons.help_outline,
-                  title: 'Trợ giúp & Phản hồi',
-                  subtitle: 'Gửi thắc mắc cho nhóm phát triển',
-                  onTap: () {},
-                ),
-                
-                const SizedBox(height: 32),
-                
-                // Nút Đăng xuất - Gọi Controller của Toàn
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      ref.read(authControllerProvider).logout();
-                      Navigator.of(context).pop(); // Quay về màn hình chính
-                    },
-                    icon: const Icon(Icons.logout, color: Colors.red),
-                    label: const Text('ĐĂNG XUẤT', style: TextStyle(color: Colors.red)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                return ListView(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(
+                        color: AppColors.textPrimary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 44,
+                            backgroundColor: Colors.white,
+                            backgroundImage: user.photoUrl == null
+                                ? null
+                                : NetworkImage(user.photoUrl!),
+                            child: user.photoUrl == null
+                                ? const Icon(
+                                    Icons.person,
+                                    color: AppColors.textPrimary,
+                                    size: 42,
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            user.displayName ?? 'Người dùng DeadlineSync',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            user.email,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: AppColors.border,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                    const SizedBox(height: AppSpacing.lg),
+                    _ProfileOption(
+                      icon: Icons.settings_outlined,
+                      title: 'Cài đặt',
+                      subtitle: 'Tùy chỉnh giao diện và đồng bộ',
+                      onTap: () {},
+                    ),
+                    _ProfileOption(
+                      icon: Icons.notifications_none_outlined,
+                      title: 'Thông báo',
+                      subtitle: 'Quản lý nhắc nhở deadline',
+                      onTap: () {},
+                    ),
+                    _ProfileOption(
+                      icon: Icons.security_outlined,
+                      title: 'Quyền truy cập Gmail',
+                      subtitle: 'Đã kết nối Google read-only',
+                      onTap: () {},
+                    ),
+                    _ProfileOption(
+                      icon: Icons.help_outline,
+                      title: 'Trợ giúp',
+                      subtitle: 'Hướng dẫn sử dụng và phản hồi',
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await ref.read(authControllerProvider).logout();
+                        if (!context.mounted) return;
+                        Navigator.of(context).pop();
+                      },
+                      icon: const Icon(Icons.logout, color: AppColors.danger),
+                      label: const Text('Đăng xuất'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                        side: const BorderSide(color: AppColors.danger),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text("Lỗi: $e")),
+          ),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildProfileOption({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: const Color(0xFFE64A19)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
+class _ProfileOption extends StatelessWidget {
+  const _ProfileOption({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Material(
+        color: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: AppColors.border),
+        ),
+        child: ListTile(
+          onTap: onTap,
+          leading: Icon(icon, color: AppColors.outlookBlue),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+          subtitle: Text(subtitle),
+          trailing: const Icon(Icons.chevron_right),
+        ),
+      ),
     );
   }
 }

@@ -8,12 +8,12 @@ import 'local_notification_service.dart';
 
 class PushNotificationService {
   PushNotificationService({
-    required FirebaseMessaging messaging,
+    required FirebaseMessaging? messaging,
     required LocalNotificationService localNotificationService,
   }) : _messaging = messaging,
        _localNotificationService = localNotificationService;
 
-  final FirebaseMessaging _messaging;
+  final FirebaseMessaging? _messaging;
   final LocalNotificationService _localNotificationService;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<String>? _tokenSubscription;
@@ -24,9 +24,14 @@ class PushNotificationService {
       return;
     }
 
+    final messaging = _messaging;
+    if (messaging == null) {
+      return;
+    }
+
     await _localNotificationService.initialize();
-    await _messaging.requestPermission(alert: true, badge: true, sound: true);
-    await _messaging.setForegroundNotificationPresentationOptions(
+    await messaging.requestPermission(alert: true, badge: true, sound: true);
+    await messaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
       sound: true,
@@ -35,16 +40,16 @@ class PushNotificationService {
     _foregroundSubscription = FirebaseMessaging.onMessage.listen(
       _showForegroundMessage,
     );
-    _tokenSubscription = _messaging.onTokenRefresh.listen(_handleTokenRefresh);
+    _tokenSubscription = messaging.onTokenRefresh.listen(_handleTokenRefresh);
     _isInitialized = true;
   }
 
   Future<String?> getToken() {
-    return _messaging.getToken();
+    return _messaging?.getToken() ?? Future.value();
   }
 
   Future<RemoteMessage?> getInitialMessage() {
-    return _messaging.getInitialMessage();
+    return _messaging?.getInitialMessage() ?? Future.value();
   }
 
   Future<void> dispose() async {

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../deadline/data/providers/deadline_database_providers.dart';
 import '../../../deadline/domain/entities/deadline.dart';
 
 enum DashboardSourceFilter { all, gmail, manual }
@@ -95,7 +97,7 @@ final mergedDeadlinesProvider = Provider<List<Deadline>>((ref) {
   ];
 });
 
-final visibleDeadlinesProvider = Provider<List<Deadline>>((ref) {
+final visibleDeadlinesProvider = FutureProvider<List<Deadline>>((ref) async {
   final filter = ref.watch(dashboardSourceFilterProvider);
   final dateFilter = ref.watch(dashboardDateFilterProvider);
   final priorityFilter = ref.watch(dashboardPriorityFilterProvider);
@@ -104,8 +106,7 @@ final visibleDeadlinesProvider = Provider<List<Deadline>>((ref) {
       .watch(dashboardSearchQueryProvider)
       .trim()
       .toLowerCase();
-  final deadlines = ref
-      .watch(mergedDeadlinesProvider)
+  final deadlines = (await ref.watch(mergedDeadlinesProvider.future))
       .where((deadline) {
         final matchesSource = switch (filter) {
           DashboardSourceFilter.all => true,
@@ -213,43 +214,4 @@ String _sourceLabel(DeadlineSource source) {
     DeadlineSource.gmail => 'Gmail',
     DeadlineSource.manual => 'Manual',
   };
-}
-
-class ManualDeadlineNotifier extends StateNotifier<List<Deadline>> {
-  ManualDeadlineNotifier() : super(const []);
-
-  void addDeadline({
-    required String title,
-    required DateTime dueDate,
-    required String description,
-    required PriorityLevel priority,
-  }) {
-    final now = DateTime.now();
-
-    state = [
-      ...state,
-      Deadline(
-        id: 'manual-${now.microsecondsSinceEpoch}',
-        title: title.trim(),
-        dueDate: dueDate,
-        description: description.trim().isEmpty ? null : description.trim(),
-        source: DeadlineSource.manual,
-        priority: priority,
-        createdAt: now,
-      ),
-    ];
-  }
-
-  void updateDeadline(Deadline updatedDeadline) {
-    state = [
-      for (final deadline in state)
-        if (deadline.id == updatedDeadline.id) updatedDeadline else deadline,
-    ];
-  }
-
-  void deleteDeadline(String id) {
-    state = state
-        .where((deadline) => deadline.id != id)
-        .toList(growable: false);
-  }
 }

@@ -9,12 +9,16 @@ import '../../../../shared/widgets/deadline_empty_state.dart';
 import '../../../../shared/widgets/deadline_filter_chip.dart';
 import '../../../../shared/widgets/deadline_search_bar.dart';
 import '../../../../shared/widgets/deadline_summary_card.dart';
+import '../../../auth/presentation/profile_screen.dart';
 import '../../../auth/data/auth_repository.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../ai_import/presentation/screens/ai_import_review_screen.dart';
 import '../../../ai_suggestion/presentation/screens/ai_suggestion_screen.dart';
+import '../../../deadline/data/providers/deadline_database_providers.dart';
 import '../../../deadline/domain/entities/deadline.dart';
 import '../../../deadline/presentation/screens/deadline_detail_screen.dart';
 import '../../../deadline/presentation/widgets/manual_deadline_form_sheet.dart';
+import 'calendar_screen.dart';
 import '../providers/dashboard_providers.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -22,8 +26,10 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allDeadlines = ref.watch(mergedDeadlinesProvider);
-    final visibleDeadlines = ref.watch(visibleDeadlinesProvider);
+    final allDeadlinesAsync = ref.watch(mergedDeadlinesProvider);
+    final visibleDeadlinesAsync = ref.watch(visibleDeadlinesProvider);
+    final allDeadlines = allDeadlinesAsync.value ?? const <Deadline>[];
+    final visibleDeadlines = visibleDeadlinesAsync.value ?? const <Deadline>[];
     final selectedFilter = ref.watch(dashboardSourceFilterProvider);
     final selectedDateFilter = ref.watch(dashboardDateFilterProvider);
     final selectedPriorityFilter = ref.watch(dashboardPriorityFilterProvider);
@@ -41,12 +47,15 @@ class DashboardScreen extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Đồng bộ deadline',
-            onPressed: () => ref.invalidate(mergedDeadlinesProvider),
+            onPressed: () => _refreshDeadlines(ref),
             icon: const Icon(Icons.sync),
           ),
           IconButton(
             tooltip: 'Đăng xuất',
-            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+            onPressed: () async {
+              await ref.read(authRepositoryProvider).signOut();
+              await ref.read(authControllerProvider).logout();
+            },
             icon: const Icon(Icons.logout),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -54,7 +63,7 @@ class DashboardScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async => ref.invalidate(mergedDeadlinesProvider),
+          onRefresh: () => _refreshDeadlines(ref),
           child: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
@@ -271,14 +280,12 @@ class DashboardScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (visibleDeadlines.isEmpty)
-                    const DeadlineEmptyState(
-                      icon: Icons.event_available_outlined,
-                      title: 'Không có deadline',
-                      message: 'Nguồn đã chọn chưa có deadline sắp tới.',
-                    )
-                  else
-                    ..._buildDeadlineGroups(context, ref, visibleDeadlines),
+                  ..._buildDeadlineContent(
+                    context,
+                    ref,
+                    visibleDeadlinesAsync,
+                    visibleDeadlines,
+                  ),
                 ],
               ),
             ),
@@ -289,12 +296,14 @@ class DashboardScreen extends ConsumerWidget {
         selectedIndex: 0,
         onDestinationSelected: (index) {
           switch (index) {
+            case 1:
+              _openCalendar(context);
             case 2:
               _openManualDeadlineSheet(context, ref);
             case 3:
-              _openAiImportReview(context);
+              _openAiImportReview(context, ref);
             case 4:
-              _openAiSuggestion(context);
+              _openProfile(context);
           }
         },
         destinations: const [
@@ -337,6 +346,48 @@ class DashboardScreen extends ConsumerWidget {
       DashboardSortMode.priorityHigh => 'Ưu tiên cao',
       DashboardSortMode.source => 'Nguồn',
     };
+  }
+
+  Future<void> _refreshDeadlines(WidgetRef ref) async {
+    ref.invalidate(mergedDeadlinesProvider);
+    ref.invalidate(visibleDeadlinesProvider);
+    await ref.read(mergedDeadlinesProvider.future);
+  }
+
+  List<Widget> _buildDeadlineContent(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<Deadline>> visibleDeadlinesAsync,
+    List<Deadline> visibleDeadlines,
+  ) {
+    return visibleDeadlinesAsync.when(
+      loading: () => [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ],
+      error: (error, _) => [
+        DeadlineEmptyState(
+          icon: Icons.error_outline,
+          title: 'Không tải được deadline',
+          message: '$error',
+        ),
+      ],
+      data: (_) {
+        if (visibleDeadlines.isEmpty) {
+          return const [
+            DeadlineEmptyState(
+              icon: Icons.event_available_outlined,
+              title: 'Không có deadline',
+              message: 'Nguồn đã chọn chưa có deadline sắp tới.',
+            ),
+          ];
+        }
+
+        return _buildDeadlineGroups(context, ref, visibleDeadlines);
+      },
+    );
   }
 
   List<Widget> _buildDeadlineGroups(
@@ -415,16 +466,15 @@ class DashboardScreen extends ConsumerWidget {
 
     if (result == null) return;
 
-    final notifier = ref.read(manualDeadlinesProvider.notifier);
-    if (initialDeadline == null) {
-      notifier.addDeadline(
-        title: result.title,
-        dueDate: result.dueDate ?? DateTime.now(),
-        description: result.description ?? '',
-        priority: result.priority,
+    try {
+      await ref.read(deadlineRepositoryProvider).saveDeadline(result);
+      ref.invalidate(mergedDeadlinesProvider);
+      ref.invalidate(visibleDeadlinesProvider);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không lưu được deadline: $error')),
       );
-    } else {
-      notifier.updateDeadline(result);
     }
   }
 
@@ -456,7 +506,16 @@ class DashboardScreen extends ConsumerWidget {
     );
 
     if (shouldDelete != true) return;
-    ref.read(manualDeadlinesProvider.notifier).deleteDeadline(deadline.id);
+    try {
+      await ref.read(deadlineRepositoryProvider).deleteDeadline(deadline.id);
+      ref.invalidate(mergedDeadlinesProvider);
+      ref.invalidate(visibleDeadlinesProvider);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không xóa được deadline: $error')),
+      );
+    }
   }
 
   void _openDeadlineDetail(BuildContext context, Deadline deadline) {
@@ -467,11 +526,26 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _openAiImportReview(BuildContext context) {
-    Navigator.of(context).push(
+  Future<void> _openAiImportReview(BuildContext context, WidgetRef ref) async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => const AiImportReviewScreen(),
       ),
+    );
+    if (!context.mounted) return;
+    ref.invalidate(mergedDeadlinesProvider);
+    ref.invalidate(visibleDeadlinesProvider);
+  }
+
+  void _openCalendar(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const CalendarScreen()),
+    );
+  }
+
+  void _openProfile(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (context) => const ProfileScreen()),
     );
   }
 
@@ -551,6 +625,9 @@ class _DeadlineListItem extends StatelessWidget {
       accentColor: accentColor,
       sourceBackground: backgroundColor,
       isUrgent: deadline.priority == PriorityLevel.high,
+      riskLabel: _riskLabel(deadline.riskLevel),
+      riskColor: _riskColor(deadline.riskLevel),
+      aiSuggestion: deadline.aiSuggestion,
       onTap: onOpen,
       trailing: onEdit == null || onDelete == null
           ? null
@@ -602,6 +679,24 @@ class _DeadlineListItem extends StatelessWidget {
       DeadlineSource.outlook => 'Outlook',
       DeadlineSource.gmail => 'Gmail',
       DeadlineSource.manual => 'Manual',
+    };
+  }
+
+  String _riskLabel(RiskLevel riskLevel) {
+    return switch (riskLevel) {
+      RiskLevel.low => 'Thấp',
+      RiskLevel.medium => 'Vừa',
+      RiskLevel.high => 'Cao',
+      RiskLevel.extreme => 'Rất cao',
+    };
+  }
+
+  Color _riskColor(RiskLevel riskLevel) {
+    return switch (riskLevel) {
+      RiskLevel.low => AppColors.success,
+      RiskLevel.medium => AppColors.warning,
+      RiskLevel.high => AppColors.danger,
+      RiskLevel.extreme => AppColors.textPrimary,
     };
   }
 }

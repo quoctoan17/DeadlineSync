@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
@@ -25,7 +26,11 @@ final deadlineLocalDataSourceProvider = Provider<DeadlineLocalDataSource>((
 });
 
 final deadlineFirestoreDataSourceProvider =
-    Provider<DeadlineFirestoreDataSource>((ref) {
+    Provider<DeadlineFirestoreDataSource?>((ref) {
+      if (Firebase.apps.isEmpty) {
+        return null;
+      }
+
       return DeadlineFirestoreDataSource(FirebaseFirestore.instance);
     });
 

@@ -1,22 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../deadline/domain/entities/deadline.dart';
+import '../../../deadline/presentation/providers/import_provider.dart';
 
-class AiImportReviewScreen extends StatefulWidget {
+class AiImportReviewScreen extends ConsumerStatefulWidget {
   const AiImportReviewScreen({super.key});
 
   @override
-  State<AiImportReviewScreen> createState() => _AiImportReviewScreenState();
+  ConsumerState<AiImportReviewScreen> createState() =>
+      _AiImportReviewScreenState();
 }
 
-class _AiImportReviewScreenState extends State<AiImportReviewScreen> {
-  bool _hasAnalyzed = false;
-  final Set<String> _selectedIds = {'ai-midterm', 'ai-report'};
+class _AiImportReviewScreenState extends ConsumerState<AiImportReviewScreen> {
+  int _days = 7;
+  final Set<String> _selectedIds = {};
 
   @override
   Widget build(BuildContext context) {
+    final pendingDeadlines = ref.watch(pendingDeadlinesProvider);
+    final isImporting = ref.watch(isImportingProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Import bằng AI')),
       body: SafeArea(
@@ -27,20 +34,22 @@ class _AiImportReviewScreenState extends State<AiImportReviewScreen> {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
-                _ImportHeader(hasAnalyzed: _hasAnalyzed),
+                _ImportHeader(hasResults: pendingDeadlines.isNotEmpty),
                 const SizedBox(height: AppSpacing.lg),
                 _IntegrationPanel(
-                  hasAnalyzed: _hasAnalyzed,
-                  onAnalyze: () => setState(() => _hasAnalyzed = true),
+                  days: _days,
+                  isImporting: isImporting,
+                  onDaysChanged: (value) => setState(() => _days = value),
+                  onAnalyze: _runImportFlow,
                 ),
-                if (_hasAnalyzed) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  _ReviewPanel(
-                    selectedIds: _selectedIds,
-                    onToggle: _toggleCandidate,
-                    onConfirm: _confirmImport,
-                  ),
-                ],
+                const SizedBox(height: AppSpacing.lg),
+                _ReviewPanel(
+                  deadlines: pendingDeadlines,
+                  selectedIds: _selectedIds,
+                  isImporting: isImporting,
+                  onToggle: _toggleDeadline,
+                  onConfirm: _confirmImport,
+                ),
               ],
             ),
           ),
@@ -49,7 +58,24 @@ class _AiImportReviewScreenState extends State<AiImportReviewScreen> {
     );
   }
 
-  void _toggleCandidate(String id, bool selected) {
+  Future<void> _runImportFlow() async {
+    try {
+      await ref.read(importControllerProvider).runImportFlow(_days);
+      final pendingDeadlines = ref.read(pendingDeadlinesProvider);
+      setState(() {
+        _selectedIds
+          ..clear()
+          ..addAll(pendingDeadlines.map((deadline) => deadline.id));
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Không quét được Gmail: $error')));
+    }
+  }
+
+  void _toggleDeadline(String id, bool selected) {
     setState(() {
       if (selected) {
         _selectedIds.add(id);
@@ -59,19 +85,34 @@ class _AiImportReviewScreenState extends State<AiImportReviewScreen> {
     });
   }
 
-  void _confirmImport() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đã xác nhận ${_selectedIds.length} deadline từ AI'),
-      ),
-    );
+  Future<void> _confirmImport() async {
+    final pendingDeadlines = ref.read(pendingDeadlinesProvider);
+    final selectedDeadlines = pendingDeadlines
+        .where((deadline) => _selectedIds.contains(deadline.id))
+        .toList(growable: false);
+
+    try {
+      await ref.read(importControllerProvider).confirmImport(selectedDeadlines);
+      setState(_selectedIds.clear);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đã import ${selectedDeadlines.length} deadline từ AI'),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không import được deadline: $error')),
+      );
+    }
   }
 }
 
 class _ImportHeader extends StatelessWidget {
-  const _ImportHeader({required this.hasAnalyzed});
+  const _ImportHeader({required this.hasResults});
 
-  final bool hasAnalyzed;
+  final bool hasResults;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +126,7 @@ class _ImportHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            hasAnalyzed ? 'AI đã tìm thấy deadline' : 'Quét email bằng AI',
+            hasResults ? 'AI đã tìm thấy deadline' : 'Quét email bằng AI',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -94,9 +135,9 @@ class _ImportHeader extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            hasAnalyzed
-                ? 'Kiểm tra lại kết quả trước khi import vào DeadlineSync.'
-                : 'Kết nối nguồn email, chọn khoảng thời gian và để AI trích xuất deadline cần theo dõi.',
+            hasResults
+                ? 'Kiểm tra kết quả Gemini trước khi import vào DeadlineSync.'
+                : 'Chọn khoảng thời gian, quét Gmail và để Gemini trích xuất deadline thật.',
             style: const TextStyle(color: AppColors.border, fontSize: 14),
           ),
         ],
@@ -106,9 +147,16 @@ class _ImportHeader extends StatelessWidget {
 }
 
 class _IntegrationPanel extends StatelessWidget {
-  const _IntegrationPanel({required this.hasAnalyzed, required this.onAnalyze});
+  const _IntegrationPanel({
+    required this.days,
+    required this.isImporting,
+    required this.onDaysChanged,
+    required this.onAnalyze,
+  });
 
-  final bool hasAnalyzed;
+  final int days;
+  final bool isImporting;
+  final ValueChanged<int> onDaysChanged;
   final VoidCallback onAnalyze;
 
   @override
@@ -124,7 +172,7 @@ class _IntegrationPanel extends StatelessWidget {
                   icon: Icons.mail_outline,
                   title: 'Gmail',
                   subtitle: 'Read-only email scopes',
-                  status: 'Đã kết nối',
+                  status: 'Dữ liệu thật',
                   color: AppColors.success,
                 ),
               ),
@@ -132,43 +180,48 @@ class _IntegrationPanel extends StatelessWidget {
               Expanded(
                 child: _SourceCard(
                   icon: Icons.psychology_alt_outlined,
-                  title: 'AI Review',
-                  subtitle: 'Lọc email học tập',
-                  status: 'Sẵn sàng',
+                  title: 'Gemini',
+                  subtitle: 'Trích xuất deadline',
+                  status: 'AI thật',
                   color: AppColors.manualPurple,
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          const Row(
-            children: [
-              Expanded(
-                child: _ConfigTile(
-                  icon: Icons.date_range_outlined,
-                  label: 'Khoảng thời gian',
-                  value: '7 ngày gần nhất',
-                ),
-              ),
-              SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: _ConfigTile(
-                  icon: Icons.filter_alt_outlined,
-                  label: 'Bộ lọc',
-                  value: 'Email có deadline',
-                ),
-              ),
+          DropdownButtonFormField<int>(
+            initialValue: days,
+            decoration: const InputDecoration(
+              labelText: 'Khoảng thời gian quét',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 7, child: Text('7 ngày gần nhất')),
+              DropdownMenuItem(value: 14, child: Text('14 ngày gần nhất')),
+              DropdownMenuItem(value: 30, child: Text('30 ngày gần nhất')),
             ],
+            onChanged: isImporting
+                ? null
+                : (value) {
+                    if (value == null) return;
+                    onDaysChanged(value);
+                  },
           ),
           const SizedBox(height: AppSpacing.lg),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: onAnalyze,
-              icon: Icon(
-                hasAnalyzed ? Icons.refresh_outlined : Icons.auto_awesome,
+              onPressed: isImporting ? null : onAnalyze,
+              icon: isImporting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome),
+              label: Text(
+                isImporting ? 'Đang quét Gmail...' : 'Quét và phân tích',
               ),
-              label: Text(hasAnalyzed ? 'Quét lại email' : 'Quét và phân tích'),
             ),
           ),
         ],
@@ -179,12 +232,16 @@ class _IntegrationPanel extends StatelessWidget {
 
 class _ReviewPanel extends StatelessWidget {
   const _ReviewPanel({
+    required this.deadlines,
     required this.selectedIds,
+    required this.isImporting,
     required this.onToggle,
     required this.onConfirm,
   });
 
+  final List<Deadline> deadlines;
   final Set<String> selectedIds;
+  final bool isImporting;
   final void Function(String id, bool selected) onToggle;
   final VoidCallback onConfirm;
 
@@ -193,7 +250,7 @@ class _ReviewPanel extends StatelessWidget {
     return _Panel(
       title: 'Xác nhận kết quả AI',
       trailing: Text(
-        '${selectedIds.length}/${_candidates.length} đã chọn',
+        '${selectedIds.length}/${deadlines.length} đã chọn',
         style: const TextStyle(
           color: AppColors.textSecondary,
           fontSize: 13,
@@ -202,18 +259,28 @@ class _ReviewPanel extends StatelessWidget {
       ),
       child: Column(
         children: [
-          for (final candidate in _candidates) ...[
-            _CandidateTile(
-              candidate: candidate,
-              selected: selectedIds.contains(candidate.id),
-              onChanged: (selected) => onToggle(candidate.id, selected),
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
+          if (deadlines.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              child: Text(
+                'Chưa có kết quả. Bấm "Quét và phân tích" để Gemini đọc Gmail.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            )
+          else
+            for (final deadline in deadlines) ...[
+              _CandidateTile(
+                deadline: deadline,
+                selected: selectedIds.contains(deadline.id),
+                onChanged: (selected) => onToggle(deadline.id, selected),
+              ),
+              const SizedBox(height: AppSpacing.md),
+            ],
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: selectedIds.isEmpty ? null : onConfirm,
+              onPressed: isImporting || selectedIds.isEmpty ? null : onConfirm,
               icon: const Icon(Icons.check_circle_outline),
               label: const Text('Import deadline đã chọn'),
             ),
@@ -326,70 +393,21 @@ class _SourceCard extends StatelessWidget {
   }
 }
 
-class _ConfigTile extends StatelessWidget {
-  const _ConfigTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.textSecondary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _CandidateTile extends StatelessWidget {
   const _CandidateTile({
-    required this.candidate,
+    required this.deadline,
     required this.selected,
     required this.onChanged,
   });
 
-  final _AiDeadlineCandidate candidate;
+  final Deadline deadline;
   final bool selected;
   final ValueChanged<bool> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final dueDate = deadline.dueDate;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -412,7 +430,7 @@ class _CandidateTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  candidate.title,
+                  deadline.title,
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 15,
@@ -421,39 +439,47 @@ class _CandidateTile extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${DateFormat('dd/MM, HH:mm').format(candidate.dueDate)} • ${candidate.subject}',
+                  '${dueDate == null ? 'Chưa có hạn' : DateFormat('dd/MM, HH:mm').format(dueDate)} • ${deadline.description ?? 'Gmail'}',
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  candidate.reason,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
+                if (deadline.aiSuggestion?.isNotEmpty == true) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    deadline.aiSuggestion!,
+                    style: const TextStyle(
+                      color: AppColors.success,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          _ConfidenceBadge(confidence: candidate.confidence),
+          _RiskBadge(riskLevel: deadline.riskLevel),
         ],
       ),
     );
   }
 }
 
-class _ConfidenceBadge extends StatelessWidget {
-  const _ConfidenceBadge({required this.confidence});
+class _RiskBadge extends StatelessWidget {
+  const _RiskBadge({required this.riskLevel});
 
-  final int confidence;
+  final RiskLevel riskLevel;
 
   @override
   Widget build(BuildContext context) {
-    final color = confidence >= 90 ? AppColors.success : AppColors.warning;
+    final color = switch (riskLevel) {
+      RiskLevel.low => AppColors.success,
+      RiskLevel.medium => AppColors.warning,
+      RiskLevel.high => AppColors.danger,
+      RiskLevel.extreme => AppColors.textPrimary,
+    };
 
     return Container(
       height: 28,
@@ -464,7 +490,7 @@ class _ConfidenceBadge extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        '$confidence%',
+        riskLevel.name,
         style: TextStyle(
           color: color,
           fontSize: 12,
@@ -474,48 +500,3 @@ class _ConfidenceBadge extends StatelessWidget {
     );
   }
 }
-
-class _AiDeadlineCandidate {
-  const _AiDeadlineCandidate({
-    required this.id,
-    required this.title,
-    required this.subject,
-    required this.dueDate,
-    required this.reason,
-    required this.confidence,
-  });
-
-  final String id;
-  final String title;
-  final String subject;
-  final DateTime dueDate;
-  final String reason;
-  final int confidence;
-}
-
-final _candidates = [
-  _AiDeadlineCandidate(
-    id: 'ai-midterm',
-    title: 'Nộp đề cương giữa kỳ',
-    subject: 'Project Management',
-    dueDate: DateTime.now().add(const Duration(days: 2, hours: 23)),
-    reason: 'AI phát hiện cụm "deadline nộp đề cương" trong email giảng viên.',
-    confidence: 94,
-  ),
-  _AiDeadlineCandidate(
-    id: 'ai-report',
-    title: 'Báo cáo tiến độ UI',
-    subject: 'Mobile Development',
-    dueDate: DateTime.now().add(const Duration(days: 5, hours: 18)),
-    reason: 'Email nhóm có yêu cầu gửi file báo cáo trước buổi demo.',
-    confidence: 89,
-  ),
-  _AiDeadlineCandidate(
-    id: 'ai-optional',
-    title: 'Đọc tài liệu Firebase',
-    subject: 'Cloud Sync',
-    dueDate: DateTime.now().add(const Duration(days: 7, hours: 9)),
-    reason: 'AI đánh dấu là việc nên làm, cần xác nhận trước khi import.',
-    confidence: 76,
-  ),
-];
