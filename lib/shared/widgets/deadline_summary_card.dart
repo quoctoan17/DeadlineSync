@@ -7,8 +7,6 @@ class DeadlineSummaryCard extends StatelessWidget {
   const DeadlineSummaryCard({
     required this.totalCount,
     required this.urgentCount,
-    required this.canvasCount,
-    required this.outlookCount,
     required this.gmailCount,
     required this.manualCount,
     super.key,
@@ -16,8 +14,6 @@ class DeadlineSummaryCard extends StatelessWidget {
 
   final int totalCount;
   final int urgentCount;
-  final int canvasCount;
-  final int outlookCount;
   final int gmailCount;
   final int manualCount;
 
@@ -52,8 +48,8 @@ class DeadlineSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '$urgentCount urgent • $outlookCount Outlook • '
-            '$gmailCount Gmail • $canvasCount Canvas • $manualCount Manual',
+            '$urgentCount deadline rủi ro cao • '
+            '$gmailCount Gmail • $manualCount thủ công',
             style: const TextStyle(color: AppColors.border, fontSize: 13),
           ),
         ],

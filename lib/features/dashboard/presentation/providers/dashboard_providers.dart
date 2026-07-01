@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../deadline/domain/entities/deadline.dart';
 
-enum DashboardSourceFilter { all, canvas, outlook, gmail, manual }
+enum DashboardSourceFilter { all, gmail, manual }
 
 enum DashboardDateFilter { all, today, tomorrow, thisWeek }
 
@@ -40,48 +40,55 @@ final mergedDeadlinesProvider = Provider<List<Deadline>>((ref) {
 
   return [
     Deadline(
-      id: 'canvas-mobile-ui',
+      id: 'gmail-mobile-ui',
       title: 'Nộp bài Mobile App UI',
       dueDate: today.add(const Duration(hours: 23, minutes: 59)),
       description: 'Mobile Development',
-      source: DeadlineSource.canvas,
+      source: DeadlineSource.gmail,
       priority: PriorityLevel.high,
+      riskLevel: RiskLevel.high,
+      aiSuggestion: 'Nên xử lý trước vì deadline trong hôm nay.',
       createdAt: today.subtract(const Duration(days: 4)),
     ),
     Deadline(
-      id: 'outlook-team-meeting',
+      id: 'manual-team-meeting',
       title: 'Họp nhóm DeadlineSync',
       dueDate: today.add(const Duration(days: 1, hours: 9)),
-      description: 'Microsoft Calendar',
-      source: DeadlineSource.outlook,
+      description: 'Thống nhất demo và phân công fix bug',
+      source: DeadlineSource.manual,
       priority: PriorityLevel.medium,
+      riskLevel: RiskLevel.medium,
       createdAt: today.subtract(const Duration(days: 2)),
     ),
     Deadline(
-      id: 'canvas-clean-architecture',
+      id: 'gmail-clean-architecture',
       title: 'Quiz Clean Architecture',
       dueDate: today.add(const Duration(days: 2, hours: 20)),
       description: 'Software Design',
-      source: DeadlineSource.canvas,
+      source: DeadlineSource.gmail,
       priority: PriorityLevel.medium,
+      riskLevel: RiskLevel.medium,
       createdAt: today.subtract(const Duration(days: 3)),
     ),
     Deadline(
-      id: 'outlook-project-demo',
+      id: 'gmail-project-demo',
       title: 'Demo tiến độ dự án',
       dueDate: today.add(const Duration(days: 4, hours: 14)),
-      description: 'Outlook Calendar',
-      source: DeadlineSource.outlook,
+      description: 'Email từ giảng viên Mobile App',
+      source: DeadlineSource.gmail,
       priority: PriorityLevel.high,
+      riskLevel: RiskLevel.high,
+      aiSuggestion: 'Chuẩn bị bản demo trước ít nhất một ngày.',
       createdAt: today.subtract(const Duration(days: 1)),
     ),
     Deadline(
-      id: 'canvas-final-report',
+      id: 'gmail-final-report',
       title: 'Nộp báo cáo cuối kỳ',
       dueDate: today.add(const Duration(days: 7, hours: 22)),
       description: 'Project Management',
-      source: DeadlineSource.canvas,
+      source: DeadlineSource.gmail,
       priority: PriorityLevel.low,
+      riskLevel: RiskLevel.low,
       createdAt: today,
     ),
     ...manualDeadlines,
@@ -102,11 +109,8 @@ final visibleDeadlinesProvider = Provider<List<Deadline>>((ref) {
       .where((deadline) {
         final matchesSource = switch (filter) {
           DashboardSourceFilter.all => true,
-          DashboardSourceFilter.canvas =>
-            deadline.source == DeadlineSource.canvas,
-          DashboardSourceFilter.outlook =>
-            deadline.source == DeadlineSource.outlook,
-          DashboardSourceFilter.gmail => deadline.source == DeadlineSource.gmail,
+          DashboardSourceFilter.gmail =>
+            deadline.source == DeadlineSource.gmail,
           DashboardSourceFilter.manual =>
             deadline.source == DeadlineSource.manual,
         };
@@ -160,7 +164,7 @@ String _searchText(Deadline deadline) {
   final source = switch (deadline.source) {
     DeadlineSource.canvas => 'canvas',
     DeadlineSource.outlook => 'outlook',
-    DeadlineSource.gmail => 'gmail google',
+    DeadlineSource.gmail => 'gmail google email',
     DeadlineSource.manual => 'manual thủ công tự nhập',
   };
 

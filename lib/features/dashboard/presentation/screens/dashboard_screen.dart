@@ -86,24 +86,6 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: AppSpacing.sm),
                         DeadlineFilterChip(
-                          label: 'Canvas',
-                          color: AppColors.canvasOrange,
-                          isSelected:
-                              selectedFilter == DashboardSourceFilter.canvas,
-                          onTap: () =>
-                              _selectFilter(ref, DashboardSourceFilter.canvas),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        DeadlineFilterChip(
-                          label: 'Outlook',
-                          color: AppColors.outlookBlue,
-                          isSelected:
-                              selectedFilter == DashboardSourceFilter.outlook,
-                          onTap: () =>
-                              _selectFilter(ref, DashboardSourceFilter.outlook),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        DeadlineFilterChip(
                           label: 'Gmail',
                           color: AppColors.gmailRed,
                           isSelected:
@@ -232,12 +214,6 @@ class DashboardScreen extends ConsumerWidget {
                     totalCount: allDeadlines.length,
                     urgentCount: allDeadlines
                         .where((item) => item.priority == PriorityLevel.high)
-                        .length,
-                    canvasCount: allDeadlines
-                        .where((item) => item.source == DeadlineSource.canvas)
-                        .length,
-                    outlookCount: allDeadlines
-                        .where((item) => item.source == DeadlineSource.outlook)
                         .length,
                     gmailCount: allDeadlines
                         .where((item) => item.source == DeadlineSource.gmail)
