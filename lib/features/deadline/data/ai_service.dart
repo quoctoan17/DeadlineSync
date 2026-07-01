@@ -10,7 +10,7 @@ class AIService {
 
   AIService({required this.apiKey}) {
     _model = GenerativeModel(
-      model: 'gemini-2.5-flash', // Sử dụng bản latest để tránh lỗi version
+      model: 'gemini-2.5-flash',
       apiKey: apiKey,
     );
   }
@@ -107,6 +107,31 @@ class AIService {
     } catch (e) {
       _logger.e("Lỗi AI Risk Analysis: $e");
       return allDeadlines;
+    }
+  }
+
+  /// Trò chuyện trực tiếp với Gemini về danh sách deadline
+  Future<String?> chatWithGemini(String message, List<Deadline> deadlines) async {
+    try {
+      final deadlineDetails = deadlines.map((e) => 
+        "- ${e.title} (Hạn: ${e.dueDate}, Ưu tiên: ${e.priority.name}, Rủi ro: ${e.riskLevel.name}, Nguồn: ${e.source.name})"
+      ).join("\n");
+
+      final prompt = """
+        Bạn là trợ lý AI chuyên nghiệp của ứng dụng DeadlineSync. 
+        Dưới đây là danh sách deadline hiện tại của người dùng:
+        $deadlineDetails
+        
+        Người dùng nói: "$message"
+        
+        Hãy trả lời ngắn gọn, hữu ích và tập trung vào việc giúp người dùng quản lý thời gian, sắp xếp lịch trình hoặc đánh giá rủi ro dựa trên danh sách trên.
+      """;
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      return response.text;
+    } catch (e) {
+      _logger.e("Lỗi Gemini Chat: $e");
+      return "Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn.";
     }
   }
 

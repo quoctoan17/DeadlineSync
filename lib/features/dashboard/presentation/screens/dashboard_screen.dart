@@ -13,9 +13,9 @@ import '../../../auth/presentation/profile_screen.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../ai_import/presentation/screens/ai_import_review_screen.dart';
-import '../../../ai_suggestion/presentation/screens/ai_suggestion_screen.dart';
 import '../../../deadline/data/providers/deadline_database_providers.dart';
 import '../../../deadline/domain/entities/deadline.dart';
+import '../../../deadline/presentation/screens/gemini_chat_screen.dart';
 import '../../../deadline/presentation/screens/deadline_detail_screen.dart';
 import '../../../deadline/presentation/widgets/manual_deadline_form_sheet.dart';
 import 'calendar_screen.dart';
@@ -28,8 +28,10 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final allDeadlinesAsync = ref.watch(mergedDeadlinesProvider);
     final visibleDeadlinesAsync = ref.watch(visibleDeadlinesProvider);
+    
     final allDeadlines = allDeadlinesAsync.value ?? const <Deadline>[];
     final visibleDeadlines = visibleDeadlinesAsync.value ?? const <Deadline>[];
+
     final selectedFilter = ref.watch(dashboardSourceFilterProvider);
     final selectedDateFilter = ref.watch(dashboardDateFilterProvider);
     final selectedPriorityFilter = ref.watch(dashboardPriorityFilterProvider);
@@ -39,27 +41,97 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DeadlineSync'),
-        actions: [
-          IconButton(
-            tooltip: 'Gợi ý AI',
-            onPressed: () => _openAiSuggestion(context),
-            icon: const Icon(Icons.auto_awesome),
-          ),
-          IconButton(
-            tooltip: 'Đồng bộ deadline',
-            onPressed: () => _refreshDeadlines(ref),
-            icon: const Icon(Icons.sync),
-          ),
-          IconButton(
-            tooltip: 'Đăng xuất',
-            onPressed: () async {
-              await ref.read(authRepositoryProvider).signOut();
-              await ref.read(authControllerProvider).logout();
-            },
-            icon: const Icon(Icons.logout),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                color: AppColors.canvasOrange,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'DeadlineSync',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  FutureBuilder(
+                    future: ref.read(googleAuthServiceProvider).signInSilently(),
+                    builder: (context, snapshot) {
+                      final email = snapshot.data?.email ?? 'User';
+                      return Text(
+                        email,
+                        style: const TextStyle(color: Colors.white70),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home_outlined),
+              title: const Text('Trang chủ'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month_outlined),
+              title: const Text('Lịch'),
+              onTap: () {
+                Navigator.pop(context);
+                _openCalendar(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline),
+              title: const Text('Thêm deadline'),
+              onTap: () {
+                Navigator.pop(context);
+                _openManualDeadlineSheet(context, ref);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.sync),
+              title: const Text('Đồng bộ AI (Gmail)'),
+              onTap: () {
+                Navigator.pop(context);
+                _openAiImportReview(context, ref);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.chat_outlined, color: AppColors.canvasOrange),
+              title: const Text('Trò chuyện với Gemini'),
+              onTap: () {
+                Navigator.pop(context);
+                _openGeminiChat(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Hồ sơ'),
+              onTap: () {
+                Navigator.pop(context);
+                _openProfile(context);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Đăng xuất', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                await ref.read(authControllerProvider).logout();
+              },
+            ),
+          ],
+        ),
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -292,39 +364,6 @@ class DashboardScreen extends ConsumerWidget {
           ),
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 1:
-              _openCalendar(context);
-            case 2:
-              _openManualDeadlineSheet(context, ref);
-            case 3:
-              _openAiImportReview(context, ref);
-            case 4:
-              _openProfile(context);
-          }
-        },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            label: 'Calendar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            label: 'Add',
-          ),
-          NavigationDestination(icon: Icon(Icons.sync), label: 'Sync'),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: 'Me'),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openManualDeadlineSheet(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Thêm deadline'),
-      ),
     );
   }
 
@@ -543,15 +582,15 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _openProfile(BuildContext context) {
+  void _openGeminiChat(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (context) => const ProfileScreen()),
+      MaterialPageRoute<void>(builder: (context) => const GeminiChatScreen()),
     );
   }
 
-  void _openAiSuggestion(BuildContext context) {
+  void _openProfile(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (context) => const AiSuggestionScreen()),
+      MaterialPageRoute<void>(builder: (context) => const ProfileScreen()),
     );
   }
 }
@@ -623,7 +662,7 @@ class _DeadlineListItem extends StatelessWidget {
       meta: '$dateLabel • ${deadline.description ?? 'Không có mô tả'}',
       source: _sourceLabel(deadline.source),
       accentColor: accentColor,
-      sourceBackground: backgroundColor,
+      sourceBackground: backgroundColor.withOpacity(0.1),
       isUrgent: deadline.priority == PriorityLevel.high,
       riskLabel: _riskLabel(deadline.riskLevel),
       riskColor: _riskColor(deadline.riskLevel),

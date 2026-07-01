@@ -5,7 +5,6 @@ import '../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 import '../data/auth_repository.dart';
 import 'login_screen.dart';
-import 'providers/auth_provider.dart';
 
 class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
@@ -29,26 +28,21 @@ class _AuthGateState extends ConsumerState<AuthGate> {
               onStart: () => setState(() => _hasStarted = true),
             );
           }
-
           return const LoginScreen();
         }
 
-    if (firebaseAuthState.isLoading || googleAuthState.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final authError = firebaseAuthState.error ?? googleAuthState.error;
-    if (authError != null) {
-      return Scaffold(
+        return const DashboardScreen();
+      },
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (error, stackTrace) => Scaffold(
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Text('Auth error: $authError', textAlign: TextAlign.center),
+            child: Text('Auth error: $error', textAlign: TextAlign.center),
           ),
         ),
-      );
-    }
-
-    return const LoginScreen();
+      ),
+    );
   }
 }

@@ -14,9 +14,21 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _emailController;
+  late final TextEditingController _passwordController;
+
   bool _isLoading = false;
   bool _isConnectingGmail = false;
+  bool _isRegisterMode = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
 
   @override
   void dispose() {
@@ -62,11 +74,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref.read(authControllerProvider).login();
+      if (_isRegisterMode) {
+        await ref.read(authControllerProvider).signUp(
+              email: _emailController.text,
+              password: _passwordController.text,
+            );
+      } else {
+        await ref.read(authControllerProvider).signIn(
+              email: _emailController.text,
+              password: _passwordController.text,
+            );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Không đăng nhập được Google: $error';
+        _errorMessage = 'Lỗi: $error';
       });
     } finally {
       if (mounted) {

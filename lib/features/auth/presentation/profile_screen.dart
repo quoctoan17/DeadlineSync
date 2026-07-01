@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../data/auth_repository.dart';
 import 'providers/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -10,7 +12,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateProvider);
+    final authState = ref.watch(authStateChangesProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tài khoản')),
@@ -23,10 +25,6 @@ class ProfileScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, _) => Center(child: Text('Lỗi: $error')),
               data: (user) {
-                if (user == null) {
-                  return const Center(child: Text('Vui lòng đăng nhập Google'));
-                }
-
                 return ListView(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   children: [
@@ -41,10 +39,10 @@ class ProfileScreen extends ConsumerWidget {
                           CircleAvatar(
                             radius: 44,
                             backgroundColor: Colors.white,
-                            backgroundImage: user.photoUrl == null
+                            backgroundImage: user?.photoURL == null
                                 ? null
-                                : NetworkImage(user.photoUrl!),
-                            child: user.photoUrl == null
+                                : NetworkImage(user!.photoURL!),
+                            child: user?.photoURL == null
                                 ? const Icon(
                                     Icons.person,
                                     color: AppColors.textPrimary,
@@ -54,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: AppSpacing.md),
                           Text(
-                            user.displayName ?? 'Người dùng DeadlineSync',
+                            user?.displayName ?? 'Người dùng DeadlineSync',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: Colors.white,
@@ -64,7 +62,7 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           Text(
-                            user.email,
+                            user?.email ?? 'Chưa đăng nhập',
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               color: AppColors.border,
@@ -85,18 +83,6 @@ class ProfileScreen extends ConsumerWidget {
                       icon: Icons.notifications_none_outlined,
                       title: 'Thông báo',
                       subtitle: 'Quản lý nhắc nhở deadline',
-                      onTap: () {},
-                    ),
-                    _ProfileOption(
-                      icon: Icons.security_outlined,
-                      title: 'Quyền truy cập Gmail',
-                      subtitle: 'Đã kết nối Google read-only',
-                      onTap: () {},
-                    ),
-                    _ProfileOption(
-                      icon: Icons.help_outline,
-                      title: 'Trợ giúp',
-                      subtitle: 'Hướng dẫn sử dụng và phản hồi',
                       onTap: () {},
                     ),
                     const SizedBox(height: AppSpacing.lg),
